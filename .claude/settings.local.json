@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv --version)",
+      "Bash(ollama list *)",
+      "Bash(uv venv *)",
+      "Bash(uv pip *)",
+      "Bash(.venv/bin/python -c \"import fastapi, anthropic, openai, git; print\\('all imports ok'\\)\")",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(PYTHONPATH=. .venv/bin/uvicorn main:app --port 8000)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(kill %1)",
+      "Bash(PYTHONPATH=. .venv/bin/python -)",
+      "Bash(PYTHONPATH=. .venv/bin/python test_agent_loop.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:8000/api/projects)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:8000/api/projects/test-ollama/tasks)",
+      "Bash(curl -s http://localhost:8000/api/projects/test-ollama/tasks/fig1-bar/render)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('svg_content length:', len\\(d['svg_content']\\), 'bytes'\\)\")"
+    ]
+  }
+}
