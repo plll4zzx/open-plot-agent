@@ -1,0 +1,25 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg)}
+  .card{padding:22px;min-height:calc(100vh - 40px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-faint)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{font-family:var(--font-body);font-size:13px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:6px;font-weight:500}
+  .pri{background:#1C1917;color:#F5F1EA}
+  .sec{background:transparent;color:#44403C;border:1px solid #D6CFC2}
+  .fin{background:#B45309;color:#F5F1EA}
+  .gho{background:transparent;color:#57534E;padding:9px 10px}
+  .dis{background:#E7E0D1;color:#A8A29E;cursor:not-allowed}
+</style></head><body>
+<div class="card">
+  <div class="lbl">Buttons</div>
+  <div class="row">
+    <button class="pri">＋ 新建项目</button>
+    <button class="sec">取消</button>
+    <button class="fin">🔒 设为最终版</button>
+  </div>
+  <div class="row">
+    <button class="gho">⟲ 撤销</button>
+    <button class="dis" disabled>发送</button>
+  </div>
+</div></body></html>

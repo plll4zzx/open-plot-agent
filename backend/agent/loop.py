@@ -5,6 +5,7 @@ and drives the tool-use cycle until the model returns stop_reason=end_turn
 or the tool round limit is reached.
 """
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 from typing import Callable, Coroutine
@@ -13,20 +14,62 @@ from agent.providers.base import Done, LLMProvider, TextDelta, ToolCall
 from agent.tools import TOOL_REGISTRY, get_schemas
 from sandbox.runner import SandboxRunner
 
-MAX_TOOL_ROUNDS = 8
 CONTEXT_FILE = ".plotsmith/context.json"
+PENDING_EDITS_FILE = ".plotsmith/pending_edits.json"
 
 SYSTEM_PROMPT = """\
 You are OpenPlotAgent, an AI assistant specialized in generating publication-quality \
-academic charts using matplotlib with PGF backend.
+academic charts using matplotlib.
 
-Guidelines:
-- Always save output as 'output.svg' (and optionally 'output.pdf') in the working directory
-- Set gid on all matplotlib elements: ax.set_gid('axes'), title.set_gid('title'), etc.
-- Use Okabe-Ito palette by default unless the user specifies otherwise
-- Write clean, well-structured plot.py files
-- When you execute code that fails, analyze the error and fix it before giving up
-- After generating a chart, briefly describe what you made and any key decisions
+## Path conventions
+Tool paths (list_files, read_file, write_file) are relative to the **task root**, NOT to chart/.
+- `processed/data.csv`  — user's processed data (task-root-relative)
+- `chart/plot.py`       — chart script (task-root-relative)
+- `chart/output.svg`    — SVG output
+- `raw/<filename>`      — experiment raw data (resolved automatically to experiment level)
+
+execute_python runs with cwd=chart/, so inside code use `../processed/data.csv`.
+
+## Data tools (use these instead of reading raw CSV into context)
+- **inspect_data(path)** — Get shape, columns, types, stats, and a preview. ALWAYS call this \
+first to understand any data file before writing code. Works with both `processed/...` and `raw/...` paths.
+- **query_data(path, columns?, filter?, sort_by?, head?)** — Retrieve a subset of data. \
+Use when you need specific columns or filtered rows from a large file.
+- **transform_data(input_path, output_path, operations)** — Clean and reshape data: \
+forward_fill (expand merged cells), transpose, pivot, melt, rename_columns, drop_columns, \
+set_header_row, flatten_multi_header, to_numeric, fillna. Use this when raw data needs \
+restructuring before plotting.
+- **write_data(path, rows | records)** — Write processed data to a CSV file.
+
+## Git tools (version control)
+- **git_log(n?, path?)** — View commit history. Optionally filter by file path (e.g. 'chart/plot.py').
+- **git_diff(hash1, hash2?, path?)** — Compare two versions. See what changed in code or data.
+- **git_restore(hash, path?)** — Restore a file to a previous version. Use git_log first to find the hash.
+
+## Required workflow
+1. **Discover data**: call inspect_data("processed/data.csv"). If it doesn't exist, \
+call inspect_data("raw/<filename>") to check what raw data is available at the experiment level. \
+If inspect_data returns available_files, examine those files.
+2. **Prepare data**: If raw data needs cleaning or subsetting, use transform_data or query_data \
+to create a clean `processed/data.csv`. If the data is already in good shape in processed/, skip this step.
+3. **Do NOT invent or generate sample data.** If no data files exist at all, ask the user to \
+upload or paste their data.
+4. **Write chart code**: write_file("chart/plot.py", <full script>)
+5. **Execute**: execute_python(<same script>) — fix any errors, update plot.py, re-run
+
+## Code requirements
+- Read data: pd.read_csv("../processed/data.csv")
+- Save output: fig.savefig("output.svg")
+- Set MPLBACKEND="svg" is already configured — do not change it
+- Assign semantic gids to every major element:
+    title.set_gid("title")
+    ax.xaxis.label.set_gid("xlabel")
+    ax.yaxis.label.set_gid("ylabel")
+    for i, patch in enumerate(ax.patches): patch.set_gid(f"bar_{i}")
+    for i, line in enumerate(ax.lines): line.set_gid(f"line_{i}")
+    for i, t in enumerate(ax.texts): t.set_gid(f"annotation_{i}")
+- Default palette (Okabe-Ito): ["#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
+- After success briefly describe what you made and any key design decisions
 """
 
 
@@ -45,6 +88,7 @@ class AgentLoop:
         self.task_dir = task_dir
         self.history: list[dict] = []
         self._commit_handle: asyncio.TimerHandle | None = None
+        self._last_plot_hash: str | None = None
         self._load_history()
 
     # ── Persistence ────────────────────────────────────────────────────────
@@ -53,14 +97,74 @@ class AgentLoop:
         ctx = self.task_dir / CONTEXT_FILE
         if ctx.exists():
             try:
-                self.history = json.loads(ctx.read_text()).get("messages", [])
+                data = json.loads(ctx.read_text())
+                self.history = data.get("messages", [])
+                self._last_plot_hash = data.get("last_plot_hash")
             except Exception:
                 self.history = []
 
     def _save_history(self) -> None:
         ctx = self.task_dir / CONTEXT_FILE
         ctx.parent.mkdir(parents=True, exist_ok=True)
-        ctx.write_text(json.dumps({"messages": self.history}, indent=2))
+        # Track plot.py hash for external change detection
+        self._last_plot_hash = self._get_plot_hash()
+        ctx.write_text(json.dumps({
+            "messages": self.history,
+            "last_plot_hash": self._last_plot_hash,
+        }, indent=2))
+
+    # ── File change detection ──────────────────────────────────────────────
+
+    def _get_plot_hash(self) -> str | None:
+        plot_py = self.task_dir / "chart" / "plot.py"
+        if not plot_py.exists():
+            return None
+        return hashlib.md5(plot_py.read_bytes()).hexdigest()
+
+    def _check_external_changes(self) -> str | None:
+        """Check if plot.py was modified externally since last agent turn."""
+        current_hash = self._get_plot_hash()
+        if self._last_plot_hash is None or current_hash is None:
+            return None
+        if current_hash != self._last_plot_hash:
+            # Read the current plot.py to show agent what changed
+            plot_py = self.task_dir / "chart" / "plot.py"
+            content = plot_py.read_text() if plot_py.exists() else "(deleted)"
+            return (
+                f"[SYSTEM NOTICE] chart/plot.py has been modified externally "
+                f"(e.g. by user manual edit or git version restore). "
+                f"The current content is:\n```python\n{content}\n```\n"
+                f"Please take this into account for any further modifications."
+            )
+        return None
+
+    # ── Pending GUI edits ──────────────────────────────────────────────────
+
+    def _consume_pending_edits(self) -> str | None:
+        """Read and clear pending GUI edits, return a notice string if any."""
+        edits_file = self.task_dir / PENDING_EDITS_FILE
+        if not edits_file.exists():
+            return None
+        try:
+            edits = json.loads(edits_file.read_text())
+        except Exception:
+            return None
+        if not edits:
+            return None
+        # Clear the file
+        edits_file.write_text("[]")
+        # Build a human-readable notice
+        lines = ["[SYSTEM NOTICE] The user made the following manual edits via the GUI:"]
+        for e in edits:
+            lines.append(
+                f"  - Element '{e['gid']}': {e['property']} changed "
+                f"from '{e.get('old_value', '?')}' to '{e['new_value']}'"
+            )
+        lines.append(
+            "These edits are currently applied to the SVG preview only (DOM). "
+            "Please update chart/plot.py to make them permanent, then re-run to verify."
+        )
+        return "\n".join(lines)
 
     # ── Main turn ──────────────────────────────────────────────────────────
 
@@ -73,14 +177,32 @@ class AgentLoop:
         Execute one complete agent turn.
         `send` is an async callable that sends a JSON string over WebSocket.
         """
+        # Inject context about external changes before the user message
+        context_notices = []
+        ext_change = self._check_external_changes()
+        if ext_change:
+            context_notices.append(ext_change)
+        pending_edits = self._consume_pending_edits()
+        if pending_edits:
+            context_notices.append(pending_edits)
+
+        if context_notices:
+            notice_text = "\n\n".join(context_notices)
+            self.history.append({"role": "user", "content": notice_text})
+            # Notify frontend that context was injected
+            await send(_ws_event("context_notice", content=notice_text))
+
         self.history.append({"role": "user", "content": user_message})
         tools = get_schemas(self.provider.tool_format)
         messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.history
 
+        from config import get_settings_dict
+        max_tool_rounds = get_settings_dict().get("max_tool_rounds", 8)
+
         assistant_text = ""
         tool_rounds = 0
 
-        while tool_rounds <= MAX_TOOL_ROUNDS:
+        while tool_rounds <= max_tool_rounds:
             pending_tool_calls: list[ToolCall] = []
 
             # Stream from LLM
@@ -180,7 +302,7 @@ class AgentLoop:
             tool_rounds += 1
 
         # Hit round limit
-        await send(_ws_event("error", message=f"Exceeded max tool rounds ({MAX_TOOL_ROUNDS})"))
+        await send(_ws_event("error", message=f"Exceeded max tool rounds ({max_tool_rounds}). Increase in Settings if needed."))
         self._save_history()
 
     # ── Git debounce ───────────────────────────────────────────────────────

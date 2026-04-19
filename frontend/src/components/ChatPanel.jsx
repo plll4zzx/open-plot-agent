@@ -1,7 +1,76 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, ChevronDown, ChevronRight } from 'lucide-react'
 
-/** Renders one agent turn event from the WebSocket */
+// ── Think-tag parser ──────────────────────────────────────────
+
+function parseContent(text) {
+  const parts = []
+  let remaining = text
+  while (remaining.length > 0) {
+    const start = remaining.indexOf('<think>')
+    if (start === -1) {
+      parts.push({ type: 'text', content: remaining })
+      break
+    }
+    if (start > 0) {
+      parts.push({ type: 'text', content: remaining.slice(0, start) })
+    }
+    remaining = remaining.slice(start + 7)
+    const end = remaining.indexOf('</think>')
+    if (end === -1) {
+      // Incomplete think block — still streaming
+      parts.push({ type: 'thinking', content: remaining, complete: false })
+      break
+    }
+    parts.push({ type: 'thinking', content: remaining.slice(0, end), complete: true })
+    remaining = remaining.slice(end + 8)
+  }
+  return parts
+}
+
+// ── ThinkingBlock ─────────────────────────────────────────────
+
+function ThinkingBlock({ content, complete }) {
+  const [open, setOpen] = useState(false)
+  const lineCount = content.split('\n').length
+
+  return (
+    <div className="my-2 rounded-md overflow-hidden"
+      style={{ border: '1px solid rgba(124,58,237,0.2)', fontSize: 11.5 }}>
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 text-left"
+        style={{ background: 'rgba(124,58,237,0.06)', color: '#7C3AED' }}>
+        <span style={{ fontSize: 12 }}>💭</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+          {complete ? `思考过程 (${lineCount} 行)` : '思考中…'}
+        </span>
+        {!complete && <span className="pulse-soft" style={{ fontSize: 8 }}>●</span>}
+        <ChevronDown size={11} style={{
+          marginLeft: 'auto',
+          transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+          transition: 'transform 0.15s',
+        }} />
+      </button>
+      {open && (
+        <div className="px-3 py-2"
+          style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            color: '#78716C',
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.55,
+            maxHeight: 320,
+            overflowY: 'auto',
+            background: 'rgba(124,58,237,0.02)',
+          }}>
+          {content}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── ToolCallRow ───────────────────────────────────────────────
+
 function ToolCallRow({ msg }) {
   const [open, setOpen] = useState(false)
   const ok = msg.meta?.ok
@@ -36,7 +105,6 @@ function ToolCallRow({ msg }) {
               <div className="mt-2 mb-1" style={{ color: '#A8A29E' }}>output</div>
               <pre className="whitespace-pre-wrap break-all">
                 {JSON.stringify(
-                  // Truncate large svg_content for display
                   output?.svg_content ? { ...output, svg_content: '[svg …]' } : output,
                   null, 2
                 )}
@@ -48,6 +116,8 @@ function ToolCallRow({ msg }) {
     </div>
   )
 }
+
+// ── MessageBubble ─────────────────────────────────────────────
 
 function MessageBubble({ msg }) {
   if (msg.role === 'user') {
@@ -66,6 +136,7 @@ function MessageBubble({ msg }) {
   }
 
   if (msg.role === 'agent') {
+    const parts = parseContent(msg.content || '')
     return (
       <div className="mb-3">
         <div className="flex items-center gap-1.5 mb-1">
@@ -75,9 +146,25 @@ function MessageBubble({ msg }) {
           </div>
           <span style={{ fontSize: 10.5, color: '#7C3AED', fontWeight: 500 }}>Agent</span>
         </div>
-        <div style={{ fontSize: 13, color: '#1C1917', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-          {msg.content}
-        </div>
+        {parts.map((part, i) =>
+          part.type === 'thinking'
+            ? <ThinkingBlock key={i} content={part.content} complete={part.complete} />
+            : part.content
+              ? <div key={i} style={{ fontSize: 13, color: '#1C1917', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {part.content}
+                </div>
+              : null
+        )}
+      </div>
+    )
+  }
+
+  if (msg.role === 'context_notice') {
+    return (
+      <div className="mb-2 px-3 py-2 rounded-md"
+        style={{ fontSize: 11, background: 'rgba(15,118,110,0.06)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.15)', lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 500, marginBottom: 2 }}>🔄 上下文同步</div>
+        <div style={{ whiteSpace: 'pre-wrap', fontSize: 10.5 }}>{msg.content}</div>
       </div>
     )
   }
@@ -99,7 +186,37 @@ function MessageBubble({ msg }) {
   )
 }
 
-export function ChatPanel({ messages, send, generating }) {
+// ── Provider pill ─────────────────────────────────────────────
+
+const PROVIDERS = [
+  { id: 'ollama', label: 'Ollama' },
+  { id: 'anthropic', label: 'Anthropic' },
+]
+
+function ProviderPill({ provider, onChange }) {
+  return (
+    <div className="flex items-center gap-1 rounded-md p-0.5"
+      style={{ background: '#F1ECE0' }}>
+      {PROVIDERS.map(p => (
+        <button key={p.id} onClick={() => onChange(p.id)}
+          className="px-2 py-0.5 rounded transition"
+          style={{
+            fontSize: 10.5,
+            fontFamily: 'JetBrains Mono, monospace',
+            background: provider === p.id ? '#FFFFFF' : 'transparent',
+            color: provider === p.id ? '#1C1917' : '#78716C',
+            fontWeight: provider === p.id ? 500 : 400,
+          }}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── ChatPanel ─────────────────────────────────────────────────
+
+export function ChatPanel({ messages, send, generating, provider, onProviderChange }) {
   const [input, setInput] = useState('')
   const bottomRef = useRef(null)
 
@@ -132,7 +249,7 @@ export function ChatPanel({ messages, send, generating }) {
 
       {/* Input */}
       <div className="px-4 py-3 border-t" style={{ borderColor: '#E7E0D1' }}>
-        <div className="flex items-end gap-2 rounded-lg border p-2.5"
+        <div className="rounded-lg border p-2.5"
           style={{ background: '#FFFFFF', borderColor: '#E7E0D1' }}>
           <textarea
             value={input}
@@ -140,23 +257,26 @@ export function ChatPanel({ messages, send, generating }) {
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
             placeholder="描述你想做什么图…"
             rows={2}
-            className="flex-1 resize-none outline-none bg-transparent"
-            style={{ fontSize: 13, color: '#1C1917', lineHeight: 1.5 }}
+            className="w-full outline-none bg-transparent"
+            style={{ fontSize: 13, color: '#1C1917', lineHeight: 1.5, resize: 'vertical', minHeight: 52 }}
           />
-          <button
-            onClick={submit}
-            disabled={generating || !input.trim()}
-            className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center transition"
-            style={{
-              background: generating || !input.trim() ? '#E7E0D1' : '#1C1917',
-              color: generating || !input.trim() ? '#A8A29E' : '#F5F1EA',
-            }}
-          >
-            <Send size={13} />
-          </button>
-        </div>
-        <div className="mt-1.5 text-right" style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>
-          ⌘↵ 发送
+          <div className="flex items-center justify-between mt-1.5">
+            <ProviderPill provider={provider} onChange={onProviderChange} />
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>⌘↵ 发送</span>
+              <button
+                onClick={submit}
+                disabled={generating || !input.trim()}
+                className="w-7 h-7 rounded-md flex items-center justify-center transition"
+                style={{
+                  background: generating || !input.trim() ? '#E7E0D1' : '#1C1917',
+                  color: generating || !input.trim() ? '#A8A29E' : '#F5F1EA',
+                }}
+              >
+                <Send size={13} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

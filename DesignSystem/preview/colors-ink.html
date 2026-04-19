@@ -1,0 +1,26 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg)}
+  .card{padding:20px;min-height:calc(100vh - 40px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+  .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:14px}
+  .ramp{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+  .ramp div{padding:14px 10px;font-family:var(--font-mono);font-size:10px;color:var(--fg-body);text-align:left}
+  .ramp div span{display:block;font-family:var(--font-body);font-weight:500;color:var(--fg);font-size:11px;margin-bottom:2px}
+  .ink1{background:#1C1917;color:#EDE6D6}.ink1 span{color:#F5F1EA}
+  .ink2{background:#44403C;color:#EDE6D6}.ink2 span{color:#F5F1EA}
+  .ink3{background:#57534E;color:#EDE6D6}.ink3 span{color:#F5F1EA}
+  .ink4{background:#78716C;color:#FAF6ED}.ink4 span{color:#FFF}
+  .ink5{background:#A8A29E}.ink5 span{color:#1C1917}
+  .ink6{background:#C4BEB7}.ink6 span{color:#1C1917}
+</style></head><body>
+<div class="card">
+  <div class="lbl">Ink ramp · text hierarchy</div>
+  <div class="ramp">
+    <div class="ink1"><span>fg</span>1C1917</div>
+    <div class="ink2"><span>body</span>44403C</div>
+    <div class="ink3"><span>muted</span>57534E</div>
+    <div class="ink4"><span>dim</span>78716C</div>
+    <div class="ink5"><span>faint</span>A8A29E</div>
+    <div class="ink6"><span>ghost</span>C4BEB7</div>
+  </div>
+</div></body></html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg)}
+  .card{padding:22px;min-height:calc(100vh - 40px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:12px}
+  .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-faint)}
+  .inp{display:flex;align-items:center;gap:8px;background:#FFFFFF;border:1px solid #E7E0D1;border-radius:6px;padding:8px 12px;font-size:13px;color:var(--fg)}
+  .inp.search svg{flex-shrink:0}
+  .area{display:flex;align-items:flex-start;gap:8px;background:#FFFFFF;border:1px solid #E7E0D1;border-radius:10px;padding:10px 12px;font-size:13px;color:var(--fg)}
+  textarea{border:none;outline:none;resize:none;flex:1;font-family:var(--font-body);font-size:13px;color:var(--fg);background:transparent;min-height:36px}
+  .send{width:28px;height:28px;border-radius:6px;background:#1C1917;color:#F5F1EA;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px}
+  .ph{color:var(--fg-faint)}
+</style></head><body>
+<div class="card">
+  <div class="lbl">Inputs</div>
+  <div class="inp search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A8A29E" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <span class="ph">搜索项目…</span>
+  </div>
+  <div class="area">
+    <textarea placeholder="描述你想做什么图…">改成对数 y 轴，加 95% CI 阴影带</textarea>
+    <div class="send">➤</div>
+  </div>
+</div></body></html>

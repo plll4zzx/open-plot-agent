@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg);font-family:var(--font-body);color:var(--fg)}
+  .card{padding:20px;min-height:calc(100vh - 40px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+  .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .swatch{border-radius:8px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column}
+  .swatch .chip{height:52px}
+  .swatch .info{padding:6px 8px;background:#FFFFFF;font-family:var(--font-mono);font-size:9.5px;color:var(--fg-muted);line-height:1.35}
+  .swatch .info b{display:block;color:var(--fg);font-weight:500;font-family:var(--font-body);font-size:10.5px;margin-bottom:1px}
+  .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-faint);margin-bottom:10px}
+</style></head><body>
+<div class="card">
+  <div class="lbl">Neutrals · canvas & ink</div>
+  <div class="row">
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#F5F1EA"></div><div class="info"><b>Canvas</b>#F5F1EA</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#FAF6ED"></div><div class="info"><b>Card</b>#FAF6ED</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#FFFFFF;border-right:1px solid var(--border)"></div><div class="info"><b>Paper</b>#FFFFFF</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#E7E0D1"></div><div class="info"><b>Border</b>#E7E0D1</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#1C1917"></div><div class="info"><b>Ink</b>#1C1917</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#78716C"></div><div class="info"><b>Dim</b>#78716C</div></div>
+    <div class="swatch" style="width:92px"><div class="chip" style="background:#A8A29E"></div><div class="info"><b>Faint</b>#A8A29E</div></div>
+  </div>
+</div></body></html>

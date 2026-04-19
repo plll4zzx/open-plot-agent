@@ -21,7 +21,9 @@
       "Bash(python3 -m json.tool)",
       "Bash(curl -s http://localhost:8000/api/projects/test-ollama/tasks)",
       "Bash(curl -s http://localhost:8000/api/projects/test-ollama/tasks/fig1-bar/render)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('svg_content length:', len\\(d['svg_content']\\), 'bytes'\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('svg_content length:', len\\(d['svg_content']\\), 'bytes'\\)\")",
+      "Bash(node_modules/.bin/tsc --noEmit --allowJs --checkJs false)",
+      "Bash(npx vite *)"
     ]
   }
 }

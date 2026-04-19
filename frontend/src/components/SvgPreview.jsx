@@ -56,7 +56,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
 
         const click = (e) => {
           e.stopPropagation()
-          onElementClick?.({ gid, element: target })
+          onElementClick?.({ gid, element: target, container: el })
         }
 
         target.addEventListener('mouseenter', enter)

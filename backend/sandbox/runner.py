@@ -24,11 +24,13 @@ class ExecResult:
 
 
 class SandboxRunner:
-    def __init__(self, project_id: str, task_id: str):
+    def __init__(self, project_id: str, experiment_id: str, task_id: str):
         self.project_id = project_id
+        self.experiment_id = experiment_id
         self.task_id = task_id
         self.project_dir = PROJECTS_ROOT / project_id
-        self.task_dir = self.project_dir / "tasks" / task_id
+        self.experiment_dir = self.project_dir / "experiments" / experiment_id
+        self.task_dir = self.experiment_dir / "tasks" / task_id
         self.venv_dir = self.project_dir / ".venv"
         self.python = self.venv_dir / "bin" / "python"
 

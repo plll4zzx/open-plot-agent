@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html,body{margin:0;padding:0;background:var(--bg)}
+  .card{padding:22px;min-height:calc(100vh - 40px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .lbl{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg-faint)}
+  .toast{background:#1C1917;color:#F5F1EA;padding:10px 14px;border-radius:6px;font-size:12.5px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,0.2);width:fit-content}
+  .toast.err{background:rgba(220,38,38,0.08);color:#DC2626;box-shadow:none;border:1px solid rgba(220,38,38,0.2)}
+  .tick{color:#0F766E}
+  .ctx{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:10.5px;color:var(--fg-muted)}
+  .bar{flex:1;height:6px;background:#E7E0D1;border-radius:3px;overflow:hidden}
+  .bar>span{display:block;height:100%;width:78%;background:linear-gradient(90deg,#1C1917,#B45309)}
+</style></head><body>
+<div class="card">
+  <div class="lbl">Feedback</div>
+  <div class="toast"><span class="tick">✓</span><span>已保存 · finalize v7</span></div>
+  <div class="toast err"><span>⚠</span><span>ValueError: cannot mix — 已重试 2 次</span></div>
+  <div class="ctx"><span>context</span><div class="bar"><span></span></div><span>47.1k / 60k</span><span style="color:#B45309">⚠ 即将压缩</span></div>
+</div></body></html>
