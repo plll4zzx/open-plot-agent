@@ -648,6 +648,78 @@ async def get_chart_svg(project_id: str, experiment_id: str, task_id: str):
     return {"svg_content": svg_path.read_text(), "svg_path": str(svg_path)}
 
 
+# ── Direct palette / style apply (no LLM) ─────────────────────────────────
+
+class PaletteApplyRequest(BaseModel):
+    # old_colors[i] gets remapped to new_colors[i]. Any hex is matched
+    # case-insensitively in plot.py source.
+    old_colors: list[str]
+    new_colors: list[str]
+    rerun: bool = True
+
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/palette")
+async def apply_palette(project_id: str, experiment_id: str, task_id: str, req: PaletteApplyRequest):
+    """Rewrite hex color literals in plot.py without invoking the LLM, then re-render."""
+    if len(req.old_colors) != len(req.new_colors):
+        raise HTTPException(400, "old_colors and new_colors length mismatch")
+
+    runner = SandboxRunner(project_id, experiment_id, task_id)
+    plot_py = runner.task_dir / "chart" / "plot.py"
+    if not plot_py.exists():
+        raise HTTPException(404, "plot.py not found")
+
+    import re as _re
+    src = plot_py.read_text()
+    replacements = 0
+    # Build (placeholder, target) pairs so a new color that equals a later
+    # old color doesn't get re-rewritten.
+    placeholders = []
+    for i, old in enumerate(req.old_colors):
+        new = req.new_colors[i]
+        if not old or not new:
+            continue
+        placeholder = f"\x00PLT_{i}\x00"
+        pattern = _re.compile(_re.escape(old), _re.IGNORECASE)
+        src, n = pattern.subn(placeholder, src)
+        replacements += n
+        placeholders.append((placeholder, new))
+    for placeholder, new in placeholders:
+        src = src.replace(placeholder, new)
+
+    if replacements == 0:
+        raise HTTPException(
+            409,
+            "No color literals in plot.py matched. The chart may use a named "
+            "palette or computed colors — ask the agent instead.",
+        )
+
+    plot_py.write_text(src)
+
+    svg_content = None
+    render_ok = True
+    render_err = None
+    if req.rerun:
+        result = await runner.render_chart()
+        render_ok = result.returncode == 0
+        if render_ok:
+            svg_files = [a for a in result.artifacts if a.endswith(".svg")]
+            if svg_files:
+                svg_content = Path(svg_files[0]).read_text()
+        else:
+            render_err = result.stderr
+
+    gm = GitManager(PROJECTS_ROOT / project_id)
+    await gm.auto_commit(f"palette: direct apply ({replacements} color{'s' if replacements != 1 else ''})")
+
+    return {
+        "ok": render_ok,
+        "replacements": replacements,
+        "svg_content": svg_content,
+        "error": render_err,
+    }
+
+
 # ── Render endpoint ────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/render")

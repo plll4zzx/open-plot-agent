@@ -10,9 +10,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { SvgPreview } from './components/SvgPreview'
 import { ProcessedTab, ScriptTab } from './components/DataPanel'
 import { ElementEditor } from './components/ElementEditor'
-import { PalettePanel } from './components/PalettePanel'
-import { MemoryPanel } from './components/MemoryPanel'
-import { TemplatePanel } from './components/TemplatePanel'
+import { PalettePanel, applyPaletteDirect } from './components/PalettePanel'
 import { ExperimentPanel } from './components/ExperimentPanel'
 import { SettingsModal } from './components/SettingsModal'
 import './index.css'
@@ -421,7 +419,7 @@ const PALETTES = [
 ]
 
 function TaskMainArea({ showToast, generating, send, onElementClick }) {
-  const { activeProjectId, activeExperimentId, activeTaskId, gitLog, gitStatus, fetchSvg, fetchGitLog, updateSvgContent } = useStore()
+  const { activeProjectId, activeExperimentId, activeTaskId, svgContent, gitLog, gitStatus, fetchSvg, fetchGitLog, updateSvgContent } = useStore()
   const [tab, setTab] = useState('preview')
   const [showBorders, setShowBorders] = useState(true)
   const [pdfName, setPdfName] = useState('')
@@ -518,11 +516,16 @@ function TaskMainArea({ showToast, generating, send, onElementClick }) {
         {tab === 'preview' && (
           <div className="ml-auto px-4 flex items-center gap-2">
             <GitStatusBadge status={gitStatus} />
-            {/* Palette chips */}
+            {/* Palette chips — direct apply (client-side + plot.py rewrite) */}
             {PALETTES.map(p => (
-              <button key={p.name} title={p.name}
-                onClick={() => send?.(`请将配色方案改为 ${p.name} 调色板`)}
-                className="flex items-center gap-0.5 px-1.5 py-1 rounded-md transition"
+              <button key={p.name} title={`应用 ${p.name} 配色`}
+                onClick={() => applyPaletteDirect({
+                  svgContent, palette: p.colors,
+                  activeProjectId, activeExperimentId, activeTaskId,
+                  updateSvgContent, fetchGitLog,
+                  onNotice: (n) => showToast(n.text),
+                })}
+                className="flex items-center gap-0.5 px-1.5 py-1 rounded-md transition hover:bg-black/5"
                 style={{ border: '1px solid #E7E0D1' }}>
                 {p.colors.slice(0, 4).map(c => (
                   <span key={c} style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 2, background: c }} />

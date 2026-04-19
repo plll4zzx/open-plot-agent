@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Upload, ArrowLeftRight, RefreshCw, Play, RotateCw, MessageSquare } from 'lucide-react'
+import { Upload, ArrowLeftRight, RefreshCw, Play, RotateCw, Plus, MessageSquare } from 'lucide-react'
 import { useStore } from '../store'
+import { CodeEditor } from './CodeEditor'
+import { DataGrid } from './DataGrid'
 
 const API = ''
 
@@ -91,12 +93,20 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
     setSaved(false)
   }, [])
 
-  const updateCell = (r, c, val) => {
-    setRows(prev => {
-      const next = prev.map(row => [...row])
-      next[r][c] = val
-      return next
-    })
+  const handleGridChange = (next) => {
+    setRows(next)
+    setSaved(false)
+  }
+
+  const addRow = () => {
+    if (!rows.length) return
+    setRows(prev => [...prev, Array(prev[0].length).fill('')])
+    setSaved(false)
+  }
+
+  const addCol = () => {
+    if (!rows.length) return
+    setRows(prev => prev.map((row, i) => [...row, i === 0 ? `col_${row.length}` : '']))
     setSaved(false)
     setSaveError(null)
   }
@@ -193,8 +203,21 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
             <span style={{ fontSize: 11, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>
               {body.length} 行 × {header.length} 列
             </span>
+            <span style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>
+              双击编辑 · Shift+点击扩选 · ⌘C/⌘V
+            </span>
+            <button onClick={addRow} title="新增一行"
+              className="ml-auto flex items-center gap-0.5 px-1.5 h-6 rounded"
+              style={{ fontSize: 10.5, color: '#78716C', border: '1px solid #E7E0D1', fontFamily: 'JetBrains Mono, monospace' }}>
+              <Plus size={10} />行
+            </button>
+            <button onClick={addCol} title="新增一列"
+              className="flex items-center gap-0.5 px-1.5 h-6 rounded"
+              style={{ fontSize: 10.5, color: '#78716C', border: '1px solid #E7E0D1', fontFamily: 'JetBrains Mono, monospace' }}>
+              <Plus size={10} />列
+            </button>
             <button onClick={transpose} title="转置"
-              className="ml-auto w-6 h-6 flex items-center justify-center rounded"
+              className="w-6 h-6 flex items-center justify-center rounded"
               style={{ color: '#78716C', border: '1px solid #E7E0D1' }}>
               <ArrowLeftRight size={11} />
             </button>
@@ -206,8 +229,7 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
           </div>
 
           {/* Table */}
-          <div ref={tableRef}
-            className="flex-1 overflow-auto mx-4 mb-3 rounded-md border"
+          <div className="flex-1 overflow-auto mx-4 mb-3 rounded-md border"
             style={{ borderColor: '#E7E0D1', background: '#FFFFFF', fontSize: 11.5, fontFamily: 'JetBrains Mono, monospace' }}>
             <table className="w-full border-collapse">
               <thead>
@@ -286,7 +308,6 @@ export function ScriptTab({ onSendToAgent }) {
   const [running, setRunning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [output, setOutput] = useState(null)
-  const textareaRef = useRef(null)
 
   const isModified = code !== savedCode
 
