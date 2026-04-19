@@ -377,30 +377,19 @@ export function ScriptTab({ onSendToAgent }) {
     }
   }
 
-  // Get selected code text
+  // Get selected code text (works for CodeMirror contenteditable selection)
   const getCodeSelection = useCallback(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return null
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    if (start === end) return null
-    const selected = code.slice(start, end)
-    return `[代码选中内容 (chart/plot.py)]\n\`\`\`python\n${selected}\n\`\`\``
-  }, [code])
+    const sel = window.getSelection()
+    const text = sel?.toString() ?? ''
+    if (!text.trim()) return null
+    return `[代码选中内容 (chart/plot.py)]\n\`\`\`python\n${text}\n\`\`\``
+  }, [])
 
   const sendSelectionToAgent = useCallback((text) => {
     if (onSendToAgent && text) {
       onSendToAgent(text)
     }
   }, [onSendToAgent])
-
-  // Ctrl/Cmd+S to save
-  const handleKeyDown = (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault()
-      saveCode()
-    }
-  }
 
   return (
     <div className="flex flex-col h-full relative">
@@ -428,22 +417,9 @@ export function ScriptTab({ onSendToAgent }) {
           </button>
         </div>
       </div>
-      <textarea
-        ref={textareaRef}
-        value={code}
-        onChange={e => setCode(e.target.value)}
-        onKeyDown={handleKeyDown}
-        spellCheck={false}
-        className="flex-1 overflow-auto px-4 py-3 outline-none resize-none"
-        style={{
-          fontSize: 11.5,
-          fontFamily: 'JetBrains Mono, monospace',
-          color: '#44403C',
-          background: 'transparent',
-          lineHeight: 1.6,
-          tabSize: 4,
-        }}
-      />
+      <div className="flex-1 flex overflow-hidden">
+        <CodeEditor value={code} onChange={setCode} onSave={saveCode} />
+      </div>
 
       {/* Send selection button */}
       <SendSelectionButton
