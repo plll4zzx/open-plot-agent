@@ -18,11 +18,13 @@ function extractCurrentColors(svgContent) {
     const colors = []
     let i = 0
     while (i < 20) {
-      const barEl = doc.getElementById(`bar_${i}`)
+      const barEl = doc.getElementById(`bar_${i}`) || doc.getElementById(`line_${i}`)
       if (!barEl) break
-      const path = barEl.querySelector('path, rect, polygon, circle')
+      const path = barEl.querySelector('path, rect, polygon, circle, polyline')
       const fill = path?.getAttribute('fill')
-      if (fill && fill !== 'none') colors.push(fill)
+      const stroke = path?.getAttribute('stroke')
+      const c = (fill && fill !== 'none') ? fill : stroke
+      if (c && c !== 'none') colors.push(c)
       i++
     }
     return colors
@@ -36,13 +38,12 @@ function applyPaletteToSvg(svgContent, palette) {
     const doc = parser.parseFromString(svgContent, 'image/svg+xml')
     let i = 0
     while (i < 20) {
-      const barEl = doc.getElementById(`bar_${i}`)
+      const barEl = doc.getElementById(`bar_${i}`) || doc.getElementById(`line_${i}`)
       if (!barEl) break
       const color = palette[i % palette.length]
       barEl.querySelectorAll('path, rect, polygon, circle').forEach(p => {
         if ((p.getAttribute('fill') || '') !== 'none') p.setAttribute('fill', color)
       })
-      // Also try line elements
       barEl.querySelectorAll('polyline, path[stroke]').forEach(p => {
         if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none')
           p.setAttribute('stroke', color)
@@ -53,15 +54,66 @@ function applyPaletteToSvg(svgContent, palette) {
   } catch { return svgContent }
 }
 
+/** Apply palette directly: preview client-side, persist via backend. */
+export async function applyPaletteDirect({
+  svgContent, palette, activeProjectId, activeExperimentId, activeTaskId,
+  updateSvgContent, fetchGitLog, onNotice,
+}) {
+  const oldColors = extractCurrentColors(svgContent)
+  if (!oldColors.length) {
+    onNotice?.({ ok: false, text: '未检测到可替换的颜色' })
+    return
+  }
+  const newColors = oldColors.map((_, i) => palette[i % palette.length])
+
+  // 1) Immediate client-side preview
+  updateSvgContent(applyPaletteToSvg(svgContent, palette))
+
+  // 2) Persist to plot.py + re-render on backend
+  if (!activeProjectId || !activeExperimentId || !activeTaskId) return
+  try {
+    const r = await fetch(
+      `/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/palette`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_colors: oldColors, new_colors: newColors, rerun: true }),
+      }
+    )
+    if (!r.ok) {
+      const detail = await r.json().catch(() => ({}))
+      onNotice?.({ ok: false, text: detail.detail || '写回 plot.py 失败' })
+      return
+    }
+    const data = await r.json()
+    if (data.svg_content) updateSvgContent(data.svg_content)
+    fetchGitLog?.()
+    onNotice?.({ ok: true, text: `已替换 ${data.replacements} 处颜色` })
+  } catch {
+    onNotice?.({ ok: false, text: '无法连接到后端' })
+  }
+}
+
 export function PalettePanel() {
-  const { svgContent, updateSvgContent } = useStore()
+  const {
+    svgContent, updateSvgContent, fetchGitLog,
+    activeProjectId, activeExperimentId, activeTaskId,
+  } = useStore()
   const [custom, setCustom] = useState([])
   const [applied, setApplied] = useState(null)
+  const [notice, setNotice] = useState(null)
 
-  const apply = (palette) => {
-    const newSvg = applyPaletteToSvg(svgContent, palette.colors)
-    updateSvgContent(newSvg)
+  const apply = async (palette) => {
     setApplied(palette.name)
+    await applyPaletteDirect({
+      svgContent, palette: palette.colors,
+      activeProjectId, activeExperimentId, activeTaskId,
+      updateSvgContent, fetchGitLog,
+      onNotice: (n) => {
+        setNotice(n)
+        setTimeout(() => setNotice(null), 2500)
+      },
+    })
     setTimeout(() => setApplied(null), 1500)
   }
 
@@ -132,6 +184,18 @@ export function PalettePanel() {
           </div>
         ))}
       </div>
+
+      {notice && (
+        <div className="mt-3 px-2 py-1.5 rounded-md"
+          style={{
+            fontSize: 11,
+            fontFamily: 'JetBrains Mono, monospace',
+            color: notice.ok ? '#0F766E' : '#B45309',
+            background: notice.ok ? 'rgba(15,118,110,0.05)' : 'rgba(180,83,9,0.05)',
+          }}>
+          {notice.text}
+        </div>
+      )}
 
       {!svgContent && (
         <div style={{ fontSize: 12, color: '#C4BEB7', textAlign: 'center', marginTop: 32 }}>

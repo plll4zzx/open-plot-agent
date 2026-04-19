@@ -69,14 +69,29 @@ class SandboxRunner:
     # ── Execution ──────────────────────────────────────────────────────────
 
     async def execute(self, code: str, cwd: Path | None = None) -> ExecResult:
-        """Run code in the project venv, capture stdout/stderr and any output files."""
+        """Run code in the project venv, capture stdout/stderr and any output files.
+
+        Always prepends a small matplotlib prelude that sets
+        `svg.fonttype='none'` so any SVG produced keeps text as real <text>
+        nodes (required for the browser element editor to read/modify text
+        and font size). Guarded with try/except so scripts without
+        matplotlib are unaffected.
+        """
         await self.ensure_venv()
         work_dir = cwd or (self.task_dir / "chart")
         work_dir.mkdir(parents=True, exist_ok=True)
 
+        prelude = (
+            "try:\n"
+            "    import matplotlib as _op_mpl\n"
+            "    _op_mpl.rcParams['svg.fonttype'] = 'none'\n"
+            "except ImportError:\n"
+            "    pass\n"
+        )
         with tempfile.NamedTemporaryFile(
             suffix=".py", dir=work_dir, delete=False, mode="w"
         ) as f:
+            f.write(prelude)
             f.write(code)
             script_path = f.name
 
