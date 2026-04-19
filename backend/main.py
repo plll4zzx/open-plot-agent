@@ -2,6 +2,7 @@
 OpenPlotAgent FastAPI backend.
 Run: uvicorn main:app --reload --port 8000
 """
+import asyncio
 import csv
 import io
 import json
@@ -14,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from agent.code_patcher import apply_patch
 from agent.loop import AgentLoop
 from config import build_provider, get_settings_dict, write_settings
 from git_manager.manager import GitManager
@@ -29,6 +31,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Request models ──────────────────────────────────────────────────────────
+
+class SaveFileRequest(BaseModel):
+    content: str
 
 # ── In-memory agent loop registry (one per active task) ───────────────────
 _loops: dict[str, AgentLoop] = {}
@@ -230,6 +237,26 @@ async def read_task_file(project_id: str, experiment_id: str, task_id: str, file
     return {"content": p.read_text(), "path": file_path}
 
 
+# ── Experiment-level file endpoints ──────────────────────────────────────────
+
+@app.get("/api/projects/{project_id}/experiments/{experiment_id}/files/{file_path:path}")
+async def read_experiment_file(project_id: str, experiment_id: str, file_path: str):
+    p = PROJECTS_ROOT / project_id / "experiments" / experiment_id / file_path
+    if not p.exists():
+        raise HTTPException(404, f"File not found: {file_path}")
+    return {"content": p.read_text(), "path": file_path}
+
+
+@app.put("/api/projects/{project_id}/experiments/{experiment_id}/files/{file_path:path}")
+async def save_experiment_file(project_id: str, experiment_id: str, file_path: str, body: SaveFileRequest):
+    p = PROJECTS_ROOT / project_id / "experiments" / experiment_id / file_path
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(body.content)
+    gm = GitManager(PROJECTS_ROOT / project_id)
+    await gm.auto_commit(f"manual: edit {file_path}")
+    return {"ok": True, "path": file_path, "bytes": len(body.content)}
+
+
 # ── Experiment raw data endpoints ──────────────────────────────────────────
 
 @app.post("/api/projects/{project_id}/experiments/{experiment_id}/data")
@@ -325,19 +352,53 @@ async def list_processed_files(project_id: str, experiment_id: str, task_id: str
 @app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/processed/{filename}")
 async def save_processed(project_id: str, experiment_id: str, task_id: str, filename: str, body: dict):
     """Save pasted table data as a CSV in processed/."""
-    proc_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id / "processed"
-    proc_dir.mkdir(parents=True, exist_ok=True)
-    rows = body.get("rows", [])
-    if not rows:
-        raise HTTPException(400, "rows is empty")
-    dest = proc_dir / filename
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerows(rows)
-    dest.write_text(buf.getvalue())
-    gm = GitManager(PROJECTS_ROOT / project_id)
-    await gm.auto_commit(f"processed: save {filename} ({len(rows)-1} rows)")
-    return {"ok": True, "path": str(dest)}
+    import traceback
+    try:
+        proc_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id / "processed"
+        proc_dir.mkdir(parents=True, exist_ok=True)
+        rows = body.get("rows", [])
+        if not rows:
+            raise HTTPException(400, "rows is empty")
+
+        # Coerce every cell to str so csv.writer can never blow up on numbers / None / dicts
+        safe_rows = [
+            ["" if c is None else str(c) for c in row]
+            for row in rows
+        ]
+
+        dest = proc_dir / filename
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerows(safe_rows)
+        # Force UTF-8 — Path.write_text otherwise uses locale.getpreferredencoding()
+        # which on some shells (no LANG / launchd) defaults to ASCII and would
+        # crash on Chinese/UTF-8 cells, killing the connection mid-response.
+        dest.write_text(buf.getvalue(), encoding="utf-8")
+
+        try:
+            gm = GitManager(PROJECTS_ROOT / project_id)
+            commit_hash = await gm.auto_commit(
+                f"processed: save {filename} ({len(safe_rows) - 1} rows)"
+            )
+        except Exception as git_exc:
+            # Don't fail the save just because the commit didn't go through
+            # (e.g. missing git user.name/email config).
+            print(f"[save_processed] git auto_commit failed: {git_exc!r}")
+            commit_hash = None
+
+        return {
+            "ok": True,
+            "path": str(dest),
+            "rows": len(safe_rows),
+            "commit": commit_hash,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Log full traceback to server stdout so we can see what blew up
+        print(f"[save_processed] FAILED: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+        raise HTTPException(500, f"{type(exc).__name__}: {exc}")
 
 
 # ── Export from experiment ──────────────────────────────────────────────────
@@ -448,9 +509,6 @@ async def get_pending_edits(project_id: str, experiment_id: str, task_id: str):
 
 # ── Save task file (for Script editor) ────────────────────────────────────
 
-class SaveFileRequest(BaseModel):
-    content: str
-
 
 @app.put("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/files/{file_path:path}")
 async def save_task_file(project_id: str, experiment_id: str, task_id: str, file_path: str, body: SaveFileRequest):
@@ -492,6 +550,90 @@ async def restore_git_version(project_id: str, experiment_id: str, task_id: str,
         "restored_hash": req.hash,
         "restored_path": restore_path,
         "svg_content": svg_content,
+    }
+
+
+# ── Fork task from a commit (Data Threads-style branching) ─────────────────
+
+class ForkFromCommitRequest(BaseModel):
+    hash: str
+    new_task_name: str
+    source_task_id: str  # the task whose snapshot we're forking from
+
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/fork-from-commit")
+async def fork_task_from_commit(
+    project_id: str, experiment_id: str, req: ForkFromCommitRequest
+):
+    """
+    Create a new task whose processed/ and chart/ folders are seeded from
+    the state of the source task at the given commit hash. Lets the user
+    branch an exploration from any past version without disturbing the
+    current working copy.
+    """
+    import subprocess
+
+    project_base = PROJECTS_ROOT / project_id
+    source_task_rel = f"experiments/{experiment_id}/tasks/{req.source_task_id}"
+
+    new_task_id = req.new_task_name.lower().replace(" ", "-")
+    new_task_dir = create_task_dirs(project_id, experiment_id, new_task_id)
+
+    # Use `git show` to extract each file at the given commit into the new task.
+    # Approach: list files in the source task at that commit via git ls-tree, then
+    # copy each one.
+    try:
+        ls = subprocess.run(
+            ["git", "-C", str(project_base), "ls-tree", "-r", "--name-only",
+             req.hash, "--", source_task_rel],
+            capture_output=True, text=True, check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(400, f"git ls-tree failed: {exc.stderr or exc}")
+
+    files_at_commit = [f for f in ls.stdout.strip().splitlines() if f]
+    if not files_at_commit:
+        raise HTTPException(
+            404,
+            f"No files found in {source_task_rel} at commit {req.hash[:7]}",
+        )
+
+    copied = 0
+    for rel_path in files_at_commit:
+        # rel_path is like experiments/<eid>/tasks/<sid>/chart/plot.py
+        if not rel_path.startswith(source_task_rel + "/"):
+            continue
+        sub = rel_path[len(source_task_rel) + 1:]  # e.g. "chart/plot.py"
+        # Skip internal state so the new task starts with a clean history
+        if sub.startswith(".plotsmith/"):
+            continue
+        dest = new_task_dir / sub
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            show = subprocess.run(
+                ["git", "-C", str(project_base), "show", f"{req.hash}:{rel_path}"],
+                capture_output=True, check=True,
+            )
+            dest.write_bytes(show.stdout)
+            copied += 1
+        except subprocess.CalledProcessError:
+            continue
+
+    gm = GitManager(project_base)
+    await gm.auto_commit(
+        f"fork: new task '{new_task_id}' from {req.source_task_id}@{req.hash[:7]} "
+        f"({copied} files)"
+    )
+
+    return {
+        "ok": True,
+        "task_id": new_task_id,
+        "path": str(new_task_dir),
+        "forked_from": {
+            "task_id": req.source_task_id,
+            "hash": req.hash,
+            "files_copied": copied,
+        },
     }
 
 
@@ -564,33 +706,164 @@ async def chat_ws(
     task_id: str,
     provider: Annotated[str | None, Query()] = None,
 ):
+    """
+    Chat WebSocket with mid-turn cancellation support.
+
+    Protocol:
+      → client sends {"message": "..."}  to start a turn
+      → client sends {"type": "stop"}    at any time to cancel current turn
+      ← server streams normal events during turn
+      ← server sends {"type": "stopped"} after cancellation
+      ← server sends {"type": "error", ...} on exception
+    """
     await websocket.accept()
     loop = _get_or_create_loop(project_id, experiment_id, task_id, provider)
 
+    def _parse(data: str) -> dict:
+        try:
+            return json.loads(data)
+        except json.JSONDecodeError:
+            return {"message": data}
+
+    async def send(payload: str):
+        await websocket.send_text(payload)
+
     try:
         while True:
-            data = await websocket.receive_text()
-            try:
-                msg = json.loads(data)
+            # Wait for a real turn request (ignore stray stop messages with no turn active)
+            while True:
+                data = await websocket.receive_text()
+                msg = _parse(data)
+                if msg.get("type") == "stop":
+                    # No turn running; nothing to cancel
+                    continue
                 user_message = msg.get("message", "")
-            except json.JSONDecodeError:
-                user_message = data
+                if user_message.strip():
+                    break
 
-            if not user_message.strip():
-                continue
-
-            async def send(payload: str):
-                await websocket.send_text(payload)
+            # Start the turn as a task so we can cancel it
+            print(f"[ws] ▶ turn start: {user_message[:60]!r}")
+            turn_task = asyncio.create_task(loop.run_turn(user_message, send))
 
             try:
-                await loop.run_turn(user_message, send)
-            except Exception as exc:
-                await websocket.send_text(
-                    json.dumps({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
-                )
+                # While the turn runs, also listen for stop / interrupt messages
+                while not turn_task.done():
+                    recv_task = asyncio.create_task(websocket.receive_text())
+                    done, _pending = await asyncio.wait(
+                        {turn_task, recv_task},
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+
+                    if recv_task in done:
+                        # A client message arrived during generation
+                        try:
+                            stop_data = recv_task.result()
+                            stop_msg = _parse(stop_data)
+                        except WebSocketDisconnect:
+                            print("[ws] ✕ client disconnected during turn → cancel")
+                            turn_task.cancel()
+                            raise
+                        except Exception as e:
+                            print(f"[ws] ? recv error during turn: {e!r}")
+                            stop_msg = {}
+
+                        print(f"[ws] ← got mid-turn message: {stop_msg}")
+                        if stop_msg.get("type") == "stop":
+                            print("[ws] ■ STOP received → cancelling turn task")
+                            turn_task.cancel()
+                            try:
+                                await turn_task
+                            except asyncio.CancelledError:
+                                print("[ws] ✓ turn task cancelled cleanly")
+                            except Exception as e:
+                                print(f"[ws] ⚠ turn task raised on cancel: {e!r}")
+                            await websocket.send_text(json.dumps({"type": "stopped"}))
+                            break
+                        # Any other message while a turn is running: ignore
+                        # (could queue it in the future)
+                    else:
+                        # Turn finished first; cancel the pending recv
+                        recv_task.cancel()
+                        try:
+                            await recv_task
+                        except (asyncio.CancelledError, Exception):
+                            pass
+
+                # Surface any non-cancellation exception from the turn
+                if turn_task.done() and not turn_task.cancelled():
+                    exc = turn_task.exception()
+                    if exc is not None:
+                        await websocket.send_text(json.dumps({
+                            "type": "error",
+                            "message": f"{type(exc).__name__}: {exc}",
+                        }))
+            except WebSocketDisconnect:
+                turn_task.cancel()
+                try:
+                    await turn_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+                raise
 
     except WebSocketDisconnect:
         pass
+
+
+# ── CodePatcher: deterministic code edits without LLM ─────────────────────
+
+class PatchCodeRequest(BaseModel):
+    gid: str
+    property: str        # "fill", "text", "font-size", "stroke-width"
+    value: str
+
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/patch-code")
+async def patch_code(project_id: str, experiment_id: str, task_id: str, req: PatchCodeRequest):
+    """
+    Apply a deterministic regex patch to plot.py and re-render.
+    Returns new SVG content on success. No LLM involved.
+    """
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    plot_py = task_dir / "chart" / "plot.py"
+    if not plot_py.exists():
+        raise HTTPException(404, "plot.py not found")
+
+    code = plot_py.read_text()
+    result = apply_patch(code, req.gid, req.property, req.value)
+
+    if not result.success:
+        return {"ok": False, "error": result.message}
+
+    # Write patched code
+    plot_py.write_text(result.patched_code)
+
+    # Re-execute to get new SVG
+    runner = SandboxRunner(project_id, experiment_id, task_id)
+    exec_result = await runner.render_chart()
+
+    if exec_result.returncode != 0:
+        # Roll back on execution failure
+        plot_py.write_text(result.original_code)
+        return {
+            "ok": False,
+            "error": f"Code patch applied but execution failed: {exec_result.stderr[:300]}",
+            "rolled_back": True,
+        }
+
+    # Read new SVG
+    svg_path = task_dir / "chart" / "output.svg"
+    svg_content = svg_path.read_text() if svg_path.exists() else None
+
+    # Git commit
+    gm = GitManager(PROJECTS_ROOT / project_id)
+    await gm.auto_commit(f"patch: {req.gid}.{req.property} = {req.value}")
+
+    return {
+        "ok": True,
+        "message": result.message,
+        "patched_lines": result.patched_lines,
+        "svg_content": svg_content,
+    }
 
 
 # ── PDF export ─────────────────────────────────────────────────────────────
@@ -628,6 +901,8 @@ class SettingsUpdate(BaseModel):
     anthropic_api_key: str | None = None
     ollama_model: str | None = None
     ollama_base_url: str | None = None
+    visual_feedback: bool | None = None
+    max_tool_rounds: int | None = None
 
 
 @app.get("/api/settings")

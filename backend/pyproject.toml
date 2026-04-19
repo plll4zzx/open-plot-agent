@@ -11,6 +11,13 @@ dependencies = [
     "python-multipart>=0.0.20",
     "pydantic>=2.0",
     "aiofiles>=24.0",
+    # Data tools (inspect_data / summarize_data / transform_data / recommend_charts)
+    # run *in the backend process* and import these directly. They are NOT the same
+    # as the per-project sandbox venv used by execute_python — install_package only
+    # touches the sandbox venv, so backend deps must be declared here.
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "openpyxl>=3.1",         # for reading .xlsx in inspect_data / read_dataframe
 ]
 
 [project.optional-dependencies]

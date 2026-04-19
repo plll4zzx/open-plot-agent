@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Upload, ArrowLeftRight, RefreshCw, Play, RotateCw } from 'lucide-react'
+import { Upload, ArrowLeftRight, RefreshCw, Play, RotateCw, MessageSquare } from 'lucide-react'
 import { useStore } from '../store'
 
 const API = ''
@@ -19,18 +19,59 @@ function inferType(vals) {
   return 'str'
 }
 
+// ── "Send to Agent" floating button ──────────────────────────
+
+function SendSelectionButton({ getSelection, onSend }) {
+  const [hasSelection, setHasSelection] = useState(false)
+
+  useEffect(() => {
+    const check = () => {
+      const sel = window.getSelection()
+      setHasSelection(sel && sel.toString().trim().length > 0)
+    }
+    document.addEventListener('selectionchange', check)
+    return () => document.removeEventListener('selectionchange', check)
+  }, [])
+
+  if (!hasSelection) return null
+
+  const handleClick = () => {
+    const text = getSelection()
+    if (text) onSend(text)
+  }
+
+  return (
+    <button onClick={handleClick}
+      className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md z-10 transition-all"
+      style={{
+        fontSize: 11,
+        background: '#1C1917',
+        color: '#F5F1EA',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}>
+      <MessageSquare size={11} />
+      发送选中内容到 Agent
+    </button>
+  )
+}
+
 // ── ProcessedTab ──────────────────────────────────────────────
 
-export function ProcessedTab({ onTableReady }) {
+export function ProcessedTab({ onTableReady, onSendToAgent }) {
   const { activeProjectId, activeExperimentId, activeTaskId } = useStore()
   const [rows, setRows] = useState([])
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [selectedCells, setSelectedCells] = useState(null) // {startR, startC, endR, endC}
   const pasteRef = useRef(null)
+  const tableRef = useRef(null)
 
   // Reset and reload when active task changes
   useEffect(() => {
     setRows([])
     setSaved(false)
+    setSaveError(null)
+    setSelectedCells(null)
     if (!activeProjectId || !activeExperimentId || !activeTaskId) return
     fetch(`${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/processed/data.csv`)
       .then(r => r.ok ? r.json() : null)
@@ -57,6 +98,7 @@ export function ProcessedTab({ onTableReady }) {
       return next
     })
     setSaved(false)
+    setSaveError(null)
   }
 
   const transpose = () => {
@@ -67,24 +109,54 @@ export function ProcessedTab({ onTableReady }) {
 
   const saveToBackend = async () => {
     if (!rows.length || !activeProjectId || !activeExperimentId || !activeTaskId) return
-    await fetch(
-      `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/processed/data.csv`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows }),
+    setSaveError(null)
+    try {
+      const resp = await fetch(
+        `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/processed/data.csv`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows }),
+        }
+      )
+      if (!resp.ok) {
+        let detail = `HTTP ${resp.status}`
+        try {
+          const body = await resp.json()
+          detail = body.detail || body.error || detail
+        } catch {}
+        throw new Error(detail)
       }
-    )
-    setSaved(true)
-    onTableReady?.(rows)
+      setSaved(true)
+      onTableReady?.(rows)
+    } catch (e) {
+      // Network errors (ECONNRESET, CORS, proxy failure) land here too
+      setSaved(false)
+      setSaveError(e.message || String(e))
+    }
   }
+
+  // Get text selection from the table area
+  const getTableSelection = useCallback(() => {
+    const sel = window.getSelection()
+    if (!sel || !sel.toString().trim()) return null
+    const text = sel.toString().trim()
+    // Format as context
+    return `[表格数据选中内容]\n${text}`
+  }, [])
+
+  const sendSelectionToAgent = useCallback((text) => {
+    if (onSendToAgent && text) {
+      onSendToAgent(text)
+    }
+  }, [onSendToAgent])
 
   const header = rows[0] ?? []
   const body = rows.slice(1)
   const types = header.map((_, ci) => inferType(body.map(r => r[ci])))
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Paste zone */}
       <div
         ref={pasteRef}
@@ -134,7 +206,8 @@ export function ProcessedTab({ onTableReady }) {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto mx-4 mb-3 rounded-md border"
+          <div ref={tableRef}
+            className="flex-1 overflow-auto mx-4 mb-3 rounded-md border"
             style={{ borderColor: '#E7E0D1', background: '#FFFFFF', fontSize: 11.5, fontFamily: 'JetBrains Mono, monospace' }}>
             <table className="w-full border-collapse">
               <thead>
@@ -165,11 +238,29 @@ export function ProcessedTab({ onTableReady }) {
               </tbody>
             </table>
           </div>
+
+          {/* Send selection button */}
+          <SendSelectionButton
+            getSelection={getTableSelection}
+            onSend={sendSelectionToAgent}
+          />
         </>
       )}
 
       {/* Footer */}
-      <div className="px-4 pb-3 flex gap-2">
+      <div className="px-4 pb-3 flex flex-col gap-1.5">
+        {saveError && (
+          <div
+            className="px-2 py-1.5 rounded-md text-xs"
+            style={{
+              background: 'rgba(220,38,38,0.08)',
+              border: '1px solid rgba(220,38,38,0.3)',
+              color: '#B91C1C',
+            }}
+          >
+            保存失败：{saveError}
+          </div>
+        )}
         {rows.length > 0 && (
           <button onClick={saveToBackend}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs"
@@ -188,7 +279,7 @@ export function ProcessedTab({ onTableReady }) {
 
 // ── ScriptTab — editable chart/plot.py, refreshes when SVG updates ──────────
 
-export function ScriptTab() {
+export function ScriptTab({ onSendToAgent }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, fetchSvg, fetchGitLog } = useStore()
   const [code, setCode] = useState('')
   const [savedCode, setSavedCode] = useState('')  // track what's on disk
@@ -265,6 +356,23 @@ export function ScriptTab() {
     }
   }
 
+  // Get selected code text
+  const getCodeSelection = useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return null
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    if (start === end) return null
+    const selected = code.slice(start, end)
+    return `[代码选中内容 (chart/plot.py)]\n\`\`\`python\n${selected}\n\`\`\``
+  }, [code])
+
+  const sendSelectionToAgent = useCallback((text) => {
+    if (onSendToAgent && text) {
+      onSendToAgent(text)
+    }
+  }, [onSendToAgent])
+
   // Ctrl/Cmd+S to save
   const handleKeyDown = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -274,7 +382,7 @@ export function ScriptTab() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
         style={{ borderColor: '#E7E0D1' }}>
         <div className="flex items-center gap-2">
@@ -315,6 +423,13 @@ export function ScriptTab() {
           tabSize: 4,
         }}
       />
+
+      {/* Send selection button */}
+      <SendSelectionButton
+        getSelection={getCodeSelection}
+        onSend={sendSelectionToAgent}
+      />
+
       {output && (
         <div className="px-4 py-2 border-t flex-shrink-0"
           style={{ borderColor: '#E7E0D1', fontSize: 11, fontFamily: 'JetBrains Mono, monospace',

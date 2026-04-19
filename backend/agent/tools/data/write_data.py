@@ -1,14 +1,16 @@
 import csv
 import io
 
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class WriteDataTool(Tool):
     def __init__(self):
         super().__init__(
             name="write_data",
+            category="data",
             description=(
                 "Write tabular data to a CSV file in the task directory (typically processed/data.csv). "
                 "Accepts data as a list of rows (first row = headers) or as a list of records (dicts). "

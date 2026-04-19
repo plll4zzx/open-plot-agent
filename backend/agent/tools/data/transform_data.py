@@ -1,7 +1,7 @@
 import json
 
-from agent.tools.base import Tool
-from agent.tools.data_utils import read_dataframe, resolve_data_path
+from agent.tools.base import Tool, register_tool
+from agent.tools.data._utils import read_dataframe, resolve_data_path
 from sandbox.runner import SandboxRunner
 
 
@@ -85,10 +85,12 @@ def _apply_operation(df, op: str, params: dict):
     return df
 
 
+@register_tool
 class TransformDataTool(Tool):
     def __init__(self):
         super().__init__(
             name="transform_data",
+            category="data",
             description=(
                 "Apply structural transformations to a data file and save the result. "
                 "Useful for cleaning messy data: expanding merged cells (forward-fill), "

@@ -7,6 +7,29 @@ from pathlib import Path
 from sandbox.runner import SandboxRunner
 
 
+class BackendDepMissing(Exception):
+    """Raised when a backend-side import (pandas, numpy, openpyxl, ...) fails.
+    Tools should catch this in their run() method and return a friendlier
+    payload via base.missing_backend_dep_error()."""
+    def __init__(self, module: str):
+        self.module = module
+        super().__init__(f"Backend dependency '{module}' not installed in backend venv")
+
+
+def import_pandas():
+    """Import pandas, converting ImportError into BackendDepMissing so tools
+    can return a clear, actionable error to the agent (rather than a generic
+    'No module named pandas' that tempts the agent to call install_package,
+    which won't help — install_package targets the sandbox venv, not backend)."""
+    try:
+        import pandas as pd
+        return pd
+    except ImportError as e:
+        # Match either pandas or one of its transitive deps (numpy, openpyxl)
+        missing = str(e).split("'")[1] if "'" in str(e) else "pandas"
+        raise BackendDepMissing(missing) from e
+
+
 def resolve_data_path(runner: SandboxRunner, path: str) -> Path | None:
     """
     Resolve a data file path relative to task or experiment directory.
@@ -28,7 +51,7 @@ def resolve_data_path(runner: SandboxRunner, path: str) -> Path | None:
 
 def read_dataframe(path: Path, **kwargs):
     """Read a data file into a pandas DataFrame, auto-detecting format."""
-    import pandas as pd
+    pd = import_pandas()
 
     suffix = path.suffix.lower()
     if suffix == ".csv":

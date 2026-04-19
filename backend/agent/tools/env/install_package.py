@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class InstallPackageTool(Tool):
     def __init__(self):
         super().__init__(
             name="install_package",
+            category="env",
             description="Install a Python package into the project venv using uv pip.",
             input_schema={
                 "type": "object",

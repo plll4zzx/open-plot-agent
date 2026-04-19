@@ -1,10 +1,12 @@
 # OpenPlotAgent
 
+![OpenPlotAgent logo](DesignSystem/assets/favicon.svg)
+
 **🌐 Language / 语言：** Current: English ｜ [切换到中文](README.md)
 
 ---
 
-> **An AI agent for academic figure generation** — human-in-the-loop workflow: AI script generation meets manual visual refinement, with direct PDF export for paper submission and full Git provenance.
+> **Plot figures the way you write papers in Overleaf** — describe your figure in conversation, let the Agent generate and run the script, step in to refine visually, and export a journal-ready PDF. Full Git provenance throughout.
 
 ---
 
@@ -28,14 +30,16 @@
 
 OpenPlotAgent is an **AI plotting assistant** built for researchers (graduate students, postdocs, PIs) who live in LaTeX, Python, and the terminal. It deeply integrates with Python's scientific ecosystem and Git version control.
 
-**Just describe what you need:** "Draw a boxplot comparing three experimental groups, following Nature submission guidelines" — the Agent automatically handles data exploration, Matplotlib code generation, chart rendering, and export. You can step in at any time: click SVG elements to adjust colors and labels, or swap the entire color scheme, then export a paper-ready PDF in one click. Every change is automatically committed to Git for full reproducibility.
+Think of it as Overleaf for figures. Just as Overleaf lets you describe your document in LaTeX, compiles it in the cloud, and keeps every version — OpenPlotAgent lets you describe your figure in plain language, runs the plotting script in an isolated sandbox, and commits every change to Git. Tell the Agent "draw a boxplot comparing three experimental groups, following Nature submission guidelines" — it calls its tool chain to explore the data, write the code, and render the result in real time. Step in whenever you want: click SVG elements to adjust styles, or edit `plot.py` directly, then export a journal-ready PDF in one click.
 
 Unlike online tools such as Datawrapper or Flourish, OpenPlotAgent:
 
 - **Human-in-the-Loop** — AI script generation and manual visual editing work together seamlessly, not a black-box automation
+- **Transparent tool calls** — every Agent action (read data, write code, run sandbox) streams live so the process is always auditable
+- **Persistent Agent memory** — three-tier memory accumulates across sessions; the Agent learns your project style over time
+- **Isolated sandbox execution** — per-project virtual environment, code runs safely, results render instantly
 - **Natively supports academic standards** (SVG/PDF export, PGF backend, LaTeX formulas, journal-specific dimensions)
 - **Full Git provenance** — every code edit, data change, and conversation is auto-committed
-- **Flexible LLM backend** — supports both local (Ollama/Qwen) and cloud (Claude), switchable at runtime
 
 ---
 
@@ -59,23 +63,44 @@ The core design principle: AI handles the tedious scripting and data processing;
 - Default Okabe-Ito colorblind-friendly palette
 - Configurable journal-specific dimensions (Nature, Science, IEEE, etc.)
 
-### AI-Driven Chart Generation
+### Transparent Tool Calls
 
-- Streaming output shows real-time reasoning and tool calls
-- Three-tier memory system: global preferences → project conventions → task history, accumulated across sessions
-- Full data pipeline: raw data → cleaning → plotting, entirely within the Agent
+The Agent is not a black box — every tool call streams live in the Chat panel so you always know what it's doing and why.
+
+The Agent has a complete tool chain (14 tools) covering the full plotting workflow:
+
+- **Data layer**: `inspect_data` explores structure → `query_data` filters → `transform_data` cleans (12+ operations) → `write_data` saves
+- **Execution layer**: `execute_python` runs code in the sandbox → `render_chart` re-renders SVG → `install_package` installs dependencies on demand
+- **Version layer**: `git_log` browses history → `git_diff` compares versions → `git_restore` reverts files
+
+Tool inputs and outputs are visible in real time, and you can intervene at any point — let the Agent run to completion or take over manually at any step.
+
+### Persistent Agent Memory
+
+The Agent accumulates knowledge at three levels, persisting across sessions:
+
+| Level | Location | What it remembers |
+| --- | --- | --- |
+| **Global** | `~/.config/` | LLM preferences, general plotting habits |
+| **Project** | `PROJECT.md` | Journal specs, color conventions, axis preferences |
+| **Task** | `TASK.md` | Data decisions, design rationale from past iterations |
+
+The longer you use a project, the better the Agent knows your style — no need to re-explain journal requirements, fonts, or color preferences each time.
+
+### Isolated Sandbox Execution
+
+Each project runs in its own isolated Python environment, with plotting code executed in a controlled sandbox:
+
+- Per-project `uv` virtual environment — dependencies never bleed between projects
+- 30-second timeout prevents accidental infinite loops
+- `install_package` tool installs pip packages on demand without manually activating the environment
+- matplotlib automatically configured with the SVG backend; rendered output streams back to the frontend instantly
 
 ### Full Git Version Control
 
 - Each project has its own isolated Git repository
 - Code edits, data changes, and conversation logs are automatically committed
 - Browse diff, restore any file to any previous commit
-
-### Isolated Code Execution
-
-- Per-project `uv` virtual environment
-- Sandboxed subprocess execution with 30-second timeout
-- Dynamically install pip packages into the project environment
 
 ### Flexible LLM Backend
 

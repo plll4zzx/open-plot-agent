@@ -1,15 +1,17 @@
 import json
 from typing import Any
 
-from agent.tools.base import Tool, safe_json
-from agent.tools.data_utils import list_available_files, read_dataframe, resolve_data_path
+from agent.tools.base import Tool, register_tool, safe_json
+from agent.tools.data._utils import list_available_files, read_dataframe, resolve_data_path
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class InspectDataTool(Tool):
     def __init__(self):
         super().__init__(
             name="inspect_data",
+            category="data",
             description=(
                 "Inspect a data file and return its metadata: shape, column names, "
                 "data types, basic statistics, and a preview of the first rows. "

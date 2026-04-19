@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class GitLogTool(Tool):
     def __init__(self):
         super().__init__(
             name="git_log",
+            category="git",
             description=(
                 "View the git commit history for this project. "
                 "Use this to understand what changes have been made, "

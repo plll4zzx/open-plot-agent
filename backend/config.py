@@ -40,7 +40,12 @@ def _load_raw() -> dict:
 def _format_toml(raw: dict) -> str:
     """Serialize the config dict back to TOML (covers the fixed config structure)."""
     prov = raw.get("provider", {})
-    lines = [f'max_tool_rounds = {raw.get("max_tool_rounds", 8)}', "", "[provider]"]
+    lines = [
+        f'max_tool_rounds = {raw.get("max_tool_rounds", 8)}',
+        f'visual_feedback = {"true" if raw.get("visual_feedback", False) else "false"}',
+        "",
+        "[provider]",
+    ]
     lines.append(f'default = "{prov.get("default", "ollama")}"')
 
     anth = prov.get("anthropic")
@@ -102,6 +107,7 @@ def get_settings_dict() -> dict:
 
     return {
         "max_tool_rounds": raw.get("max_tool_rounds", 8),
+        "visual_feedback": raw.get("visual_feedback", False),
         "default_provider": prov.get("default", "ollama"),
         "anthropic": {
             "model": anth.get("model", "claude-sonnet-4-6"),
@@ -121,6 +127,9 @@ def write_settings(updates: dict) -> None:
 
     if "max_tool_rounds" in updates:
         raw["max_tool_rounds"] = int(updates["max_tool_rounds"])
+
+    if "visual_feedback" in updates:
+        raw["visual_feedback"] = bool(updates["visual_feedback"])
 
     if "default_provider" in updates:
         prov["default"] = updates["default_provider"]

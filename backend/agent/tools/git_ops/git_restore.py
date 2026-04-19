@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class GitRestoreTool(Tool):
     def __init__(self):
         super().__init__(
             name="git_restore",
+            category="git",
             description=(
                 "Restore a file or the entire task to a previous git version. "
                 "This checks out the specified file(s) from the given commit hash "

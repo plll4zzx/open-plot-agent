@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class ExecutePythonTool(Tool):
     def __init__(self):
         super().__init__(
             name="execute_python",
+            category="env",
             description=(
                 "Execute Python code in the project's uv venv sandbox. "
                 "Returns stdout, stderr, and a list of any output files created (SVG, PDF, PNG). "

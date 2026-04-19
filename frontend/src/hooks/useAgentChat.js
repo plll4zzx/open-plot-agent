@@ -15,10 +15,22 @@ export function useAgentChat(provider = 'ollama') {
   const messagesRef = useRef([])
   useEffect(() => { messagesRef.current = messages }, [messages])
 
-  // Stop: close WS and force reconnect via wsKey
+  // Stop: send a cancel signal over the existing WS so the backend can abort the current turn.
+  // Fallback: if WS is not open, force a reconnect (old behavior).
   const stop = useCallback(() => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ type: 'stop' }))
+      } catch {
+        setWsKey(k => k + 1)
+      }
+    } else {
+      setWsKey(k => k + 1)
+    }
+    // Generating flag will be cleared by the 'stopped' / 'done' event; clear it
+    // optimistically here so the UI reacts immediately.
     setGenerating(false)
-    setWsKey(k => k + 1)
   }, [])
 
   // ── Connect / reconnect when project+experiment+task+provider change ──────
@@ -93,6 +105,17 @@ export function useAgentChat(provider = 'ollama') {
           fetchGitLog()
           setGitStatus('saving')
           setTimeout(() => setGitStatus('saved'), 800)
+          break
+
+        case 'stopped':
+          setMessages(prev => [...prev, {
+            id: nextId(),
+            role: 'system',
+            content: '已停止生成',
+          }])
+          setGenerating(false)
+          fetchSvg()
+          fetchGitLog()
           break
 
         case 'error':

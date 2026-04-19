@@ -1,13 +1,15 @@
 from pathlib import Path
 
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class RenderChartTool(Tool):
     def __init__(self):
         super().__init__(
             name="render_chart",
+            category="chart",
             description="Re-run the current plot.py and return the resulting SVG content.",
             input_schema={
                 "type": "object",

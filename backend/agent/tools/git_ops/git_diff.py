@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class GitDiffTool(Tool):
     def __init__(self):
         super().__init__(
             name="git_diff",
+            category="git",
             description=(
                 "Compare two git versions to see what changed. "
                 "Shows the diff between two commits for a specific file or the entire task. "

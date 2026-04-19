@@ -11,6 +11,8 @@ import { SvgPreview } from './components/SvgPreview'
 import { ProcessedTab, ScriptTab } from './components/DataPanel'
 import { ElementEditor } from './components/ElementEditor'
 import { PalettePanel } from './components/PalettePanel'
+import { MemoryPanel } from './components/MemoryPanel'
+import { TemplatePanel } from './components/TemplatePanel'
 import { ExperimentPanel } from './components/ExperimentPanel'
 import { SettingsModal } from './components/SettingsModal'
 import './index.css'
@@ -545,10 +547,10 @@ function TaskMainArea({ showToast, generating, send, onElementClick }) {
       {/* Tab content — Processed and Pipeline stay mounted (CSS-hidden) to preserve state */}
       <div className="flex-1 overflow-hidden flex flex-col">
         <div style={{ display: tab === 'processed' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-          <ProcessedTab onTableReady={handleTableReady} />
+          <ProcessedTab onTableReady={handleTableReady} onSendToAgent={(text) => send?.(`${text}\n\n请根据上面选中的内容回答或操作。`)} />
         </div>
         <div style={{ display: tab === 'script' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-          <ScriptTab />
+          <ScriptTab onSendToAgent={(text) => send?.(`${text}\n\n请根据上面选中的代码回答或操作。`)} />
         </div>
         {tab === 'preview' && (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -747,9 +749,25 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
             </div>
           </>
         )}
+        {rightTab === 'memory' && (
+          <>
+            <SectionHeader num="05" title="记忆" />
+            <div className="flex-1 overflow-hidden">
+              <MemoryPanel />
+            </div>
+          </>
+        )}
+        {rightTab === 'template' && (
+          <>
+            <SectionHeader num="06" title="模板" />
+            <div className="flex-1 overflow-hidden">
+              <TemplatePanel onSendMessage={(msg) => { send(msg); setRightTab('chat') }} />
+            </div>
+          </>
+        )}
         {rightTab === 'history' && (
           <>
-            <SectionHeader num="05" title="历史" />
+            <SectionHeader num="07" title="历史" />
             <div className="flex-1 overflow-y-auto px-4 py-4">
               {gitLog.map((c, idx) => (
                 <div key={c.hash} className="flex items-start gap-2 mb-3 group">
@@ -797,10 +815,12 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
       <div className="flex flex-col items-center gap-1 py-3 border-l flex-shrink-0"
         style={{ width: 48, borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.3)' }}>
         {[
-          ['chat',    MessageSquare, '对话'],
-          ['edit',    Pencil,        '元素编辑'],
-          ['palette', Palette,       '配色方案'],
-          ['history', Clock,         '历史'],
+          ['chat',     MessageSquare, '对话'],
+          ['edit',     Pencil,        '元素编辑'],
+          ['palette',  Palette,       '配色方案'],
+          ['memory',   FileText,      '记忆'],
+          ['template', LayoutGrid,    '模板'],
+          ['history',  Clock,         '历史'],
         ].map(([id, Icon, label]) => (
           <button key={id} onClick={() => setRightTab(id)} title={label}
             className="w-9 h-9 flex items-center justify-center rounded-md transition relative"

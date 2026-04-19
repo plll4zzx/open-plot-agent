@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class WriteFileTool(Tool):
     def __init__(self):
         super().__init__(
             name="write_file",
+            category="file",
             description="Write or overwrite a file in the task workspace.",
             input_schema={
                 "type": "object",

@@ -1,11 +1,13 @@
-from agent.tools.base import Tool
+from agent.tools.base import Tool, register_tool
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class ListFilesTool(Tool):
     def __init__(self):
         super().__init__(
             name="list_files",
+            category="file",
             description="List files and directories at the given path within the task workspace.",
             input_schema={
                 "type": "object",

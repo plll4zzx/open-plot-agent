@@ -124,6 +124,9 @@ def fix_gids(svg_path: str | Path) -> tuple[str, GidReport]:
     # ── x-axis label ─────────────────────────────────────────────────────
     xaxis = axes.find(f"{_ns('g')}[@id='matplotlib.axis_1']")
     if xaxis is not None:
+        # Tag the whole axis group so the frontend can detect double-clicks
+        # for the axis-range editor.
+        _set_id(xaxis, "xaxis", report)
         # The xlabel text group is the last direct g child NOT inside an xtick group
         tick_ids = {c.get("id", "") for c in xaxis if re.match(r"xtick_", c.get("id", ""))}
         label_gs = [
@@ -157,6 +160,7 @@ def fix_gids(svg_path: str | Path) -> tuple[str, GidReport]:
     # ── y-axis label ─────────────────────────────────────────────────────
     yaxis = axes.find(f"{_ns('g')}[@id='matplotlib.axis_2']")
     if yaxis is not None:
+        _set_id(yaxis, "yaxis", report)
         ytick_text_ids: set[str] = set()
         for ytick in yaxis:
             if re.match(r"ytick_", ytick.get("id", "")):

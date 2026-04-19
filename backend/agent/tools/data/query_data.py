@@ -1,14 +1,16 @@
 import json
 
-from agent.tools.base import Tool
-from agent.tools.data_utils import read_dataframe, resolve_data_path
+from agent.tools.base import Tool, register_tool
+from agent.tools.data._utils import read_dataframe, resolve_data_path
 from sandbox.runner import SandboxRunner
 
 
+@register_tool
 class QueryDataTool(Tool):
     def __init__(self):
         super().__init__(
             name="query_data",
+            category="data",
             description=(
                 "Query a subset of a data file. Select specific columns, filter rows, "
                 "and limit the number of rows returned. Returns data as JSON records. "

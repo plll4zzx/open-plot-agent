@@ -11,8 +11,17 @@ from pathlib import Path
 from typing import Callable, Coroutine
 
 from agent.providers.base import Done, LLMProvider, TextDelta, ToolCall
+from agent.chart_validator import (
+    format_issues_for_agent,
+    validate_chart,
+    validate_chart_visual,
+)
+from agent.context_compressor import maybe_compress
 from agent.tools import TOOL_REGISTRY, get_schemas
 from sandbox.runner import SandboxRunner
+
+# Maximum number of validation-driven retries within one turn.
+MAX_VISUAL_RETRIES_PER_TURN = 2
 
 CONTEXT_FILE = ".plotsmith/context.json"
 PENDING_EDITS_FILE = ".plotsmith/pending_edits.json"
@@ -31,8 +40,15 @@ Tool paths (list_files, read_file, write_file) are relative to the **task root**
 execute_python runs with cwd=chart/, so inside code use `../processed/data.csv`.
 
 ## Data tools (use these instead of reading raw CSV into context)
-- **inspect_data(path)** — Get shape, columns, types, stats, and a preview. ALWAYS call this \
-first to understand any data file before writing code. Works with both `processed/...` and `raw/...` paths.
+- **summarize_data(path)** — Get a concise natural language summary of a data file. \
+Best for initial exploration — gives you an overview in one compact paragraph. \
+Use this FIRST, then inspect_data only if you need precise column details.
+- **recommend_charts(path)** — Analyze a data file and suggest 2-4 appropriate chart \
+types with reasoning. Use this when the user is unsure what chart to make, or to \
+confirm your own chart choice matches the data shape.
+- **inspect_data(path)** — Get shape, columns, types, stats, and a preview. \
+Use when you need precise column-level details (dtypes, exact stats, sample values). \
+Works with both `processed/...` and `raw/...` paths.
 - **query_data(path, columns?, filter?, sort_by?, head?)** — Retrieve a subset of data. \
 Use when you need specific columns or filtered rows from a large file.
 - **transform_data(input_path, output_path, operations)** — Clean and reshape data: \
@@ -41,21 +57,51 @@ set_header_row, flatten_multi_header, to_numeric, fillna. Use this when raw data
 restructuring before plotting.
 - **write_data(path, rows | records)** — Write processed data to a CSV file.
 
+## Memory tools (persist notes across turns and sessions)
+- **memory_read(scope)** — Read persistent notes. scope ∈ {'global','project','experiment','task'}. \
+Call memory_read('global') and memory_read('project') at the start of any new task to \
+pick up user preferences (color palette, journal requirements, recurring reviewer feedback).
+- **memory_write(scope, content, mode?)** — Record a new note. Use mode='append' (default) \
+to preserve history, or 'replace' to overwrite. Examples: after user says "I always want \
+Okabe-Ito colors", call memory_write('global', 'Palette: Okabe-Ito'). After fixing an \
+issue based on reviewer comments, call memory_write('task', 'Reviewer asked for p-values…').
+
 ## Git tools (version control)
 - **git_log(n?, path?)** — View commit history. Optionally filter by file path (e.g. 'chart/plot.py').
 - **git_diff(hash1, hash2?, path?)** — Compare two versions. See what changed in code or data.
 - **git_restore(hash, path?)** — Restore a file to a previous version. Use git_log first to find the hash.
 
+## Environment & packages
+- **install_package(name, version?)** — Install a Python package into the \
+**per-task sandbox venv** (used only by execute_python / plot.py). Use this \
+ONLY when `execute_python` fails with ImportError. The package is \
+automatically recorded in requirements.txt.
+- Pre-installed in sandbox venv: matplotlib, pandas, numpy, scipy, seaborn.
+- For specialized charts (e.g. networkx, sklearn, statsmodels), install on demand.
+- **install_package does NOT affect backend tools** (inspect_data, summarize_data, \
+transform_data, query_data, write_data, recommend_charts). Those run in the \
+backend Python process. If one of them returns a `backend_dependency_missing` \
+hint, STOP and tell the user to install it into their backend venv — don't \
+retry with install_package.
+
 ## Required workflow
-1. **Discover data**: call inspect_data("processed/data.csv"). If it doesn't exist, \
-call inspect_data("raw/<filename>") to check what raw data is available at the experiment level. \
-If inspect_data returns available_files, examine those files.
+0. **Recall preferences** (first turn in a task only): quickly call memory_read('global') \
+and memory_read('project') to pick up any standing style/journal/palette preferences. \
+Skip if you've already read them earlier in this conversation.
+1. **Discover data**: call summarize_data("processed/data.csv") for a quick overview, \
+or inspect_data for detailed column info. If it doesn't exist, \
+call summarize_data("raw/<filename>") to check what raw data is available. \
+If the tool returns available_files, examine those files.
 2. **Prepare data**: If raw data needs cleaning or subsetting, use transform_data or query_data \
 to create a clean `processed/data.csv`. If the data is already in good shape in processed/, skip this step.
 3. **Do NOT invent or generate sample data.** If no data files exist at all, ask the user to \
 upload or paste their data.
-4. **Write chart code**: write_file("chart/plot.py", <full script>)
+4. **Write chart code**: write_file("chart/plot.py", <full script>). If the user is unsure \
+what chart type fits, call recommend_charts(path) first.
 5. **Execute**: execute_python(<same script>) — fix any errors, update plot.py, re-run
+6. **Self-check**: After execution, review any validation warnings. Fix errors and re-run if needed.
+7. **Persist preferences** (optional): if the user expressed a lasting preference during the \
+conversation, record it with memory_write at the appropriate scope.
 
 ## Code requirements
 - Read data: pd.read_csv("../processed/data.csv")
@@ -89,6 +135,7 @@ class AgentLoop:
         self.history: list[dict] = []
         self._commit_handle: asyncio.TimerHandle | None = None
         self._last_plot_hash: str | None = None
+        self._visual_retries = 0  # reset each turn; limits multimodal validator calls
         self._load_history()
 
     # ── Persistence ────────────────────────────────────────────────────────
@@ -176,7 +223,14 @@ class AgentLoop:
         """
         Execute one complete agent turn.
         `send` is an async callable that sends a JSON string over WebSocket.
+
+        Cancellable: if asyncio.CancelledError is raised (e.g. the user hit
+        the stop button), we roll back any user messages appended this turn
+        so the in-memory history stays consistent.
         """
+        # Remember the history length so we can roll back on cancellation
+        history_cursor = len(self.history)
+
         # Inject context about external changes before the user message
         context_notices = []
         ext_change = self._check_external_changes()
@@ -193,6 +247,29 @@ class AgentLoop:
             await send(_ws_event("context_notice", content=notice_text))
 
         self.history.append({"role": "user", "content": user_message})
+
+        # Reset per-turn counters
+        self._visual_retries = 0
+
+        try:
+            await self._run_turn_inner(user_message, send)
+        except asyncio.CancelledError:
+            # Roll back any messages appended this turn so the in-memory
+            # history stays consistent for the next request.
+            del self.history[history_cursor:]
+            raise
+
+    async def _run_turn_inner(
+        self,
+        user_message: str,
+        send: Callable[[str], Coroutine],
+    ) -> None:
+        # ── Context compression ───────────────────────────────────────────
+        task_md = self.task_dir / "TASK.md"
+        self.history = await maybe_compress(
+            self.history, self.provider, task_md_path=task_md
+        )
+
         tools = get_schemas(self.provider.tool_format)
         messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.history
 
@@ -240,6 +317,9 @@ class AgentLoop:
                 break
 
             # Execute all pending tool calls, collecting results
+            from agent.tools.base import missing_backend_dep_error
+            from agent.tools.data._utils import BackendDepMissing
+
             results: list[tuple[ToolCall, dict, bool]] = []
             for tc in pending_tool_calls:
                 tool = TOOL_REGISTRY.get(tc.name)
@@ -250,8 +330,20 @@ class AgentLoop:
                     try:
                         result = await tool.run(tc.input, self.runner)
                         ok = result.get("ok", True)
+                    except BackendDepMissing as e:
+                        # Surface a specific, actionable message so the model
+                        # knows NOT to call install_package (which won't help).
+                        result = missing_backend_dep_error(e.module)
+                        ok = False
                     except Exception as e:
-                        result = {"error": str(e)}
+                        # Fallback: some tools may import pandas at module top
+                        # level or via other helpers and raise plain ImportError.
+                        msg = str(e)
+                        if isinstance(e, ImportError) and "'" in msg:
+                            mod = msg.split("'")[1]
+                            result = missing_backend_dep_error(mod)
+                        else:
+                            result = {"error": msg}
                         ok = False
                 results.append((tc, result, ok))
                 await send(_ws_event(
@@ -261,6 +353,50 @@ class AgentLoop:
                     output=result,
                     ok=ok,
                 ))
+
+            # ── Auto-validate chart after execution ──────────────────────
+            for tc, res, ok in results:
+                if tc.name in ("execute_python", "render_chart") and ok:
+                    svg_file = self.task_dir / "chart" / "output.svg"
+                    data_file = self.task_dir / "processed" / "data.csv"
+                    if svg_file.exists():
+                        issues = validate_chart(
+                            svg_file,
+                            data_file if data_file.exists() else None,
+                        )
+                        # Optional: multimodal visual check
+                        # Only run if (a) deterministic checks passed cleanly, and
+                        # (b) we haven't already retried too many times this turn,
+                        # to avoid runaway costs and infinite loops.
+                        from config import get_settings_dict
+                        settings = get_settings_dict()
+                        visual_enabled = settings.get(
+                            "visual_feedback", False
+                        )
+                        if (
+                            visual_enabled
+                            and not any(i.get("level") == "error" for i in issues)
+                            and self._visual_retries < MAX_VISUAL_RETRIES_PER_TURN
+                        ):
+                            try:
+                                visual_issues = await validate_chart_visual(
+                                    svg_file,
+                                    provider_name=settings.get("default_provider", "anthropic"),
+                                )
+                                if visual_issues:
+                                    self._visual_retries += 1
+                                issues += visual_issues
+                            except Exception as e:
+                                # Never let visual check break the turn
+                                pass
+
+                        notice = format_issues_for_agent(issues)
+                        if notice:
+                            await send(_ws_event(
+                                "context_notice", content=notice
+                            ))
+                            # Inject into tool result so agent sees it
+                            res["_validation"] = notice
 
             # Append tool call + results in the format the provider expects
             if self.provider.tool_format == "anthropic":
