@@ -24,9 +24,9 @@ function ColumnPicker({ headers, selected, onChange }) {
           )}
             className="px-1.5 py-0.5 rounded text-xs font-mono transition"
             style={{
-              border: `1px solid ${on ? '#1C1917' : '#D6CFC2'}`,
-              background: on ? '#1C1917' : 'transparent',
-              color: on ? '#F5F1EA' : '#78716C',
+              border: `1px solid ${on ? '#1A2B3C' : '#BDCFDF'}`,
+              background: on ? '#1A2B3C' : 'transparent',
+              color: on ? '#EBF4FA' : '#4A6478',
             }}>
             {h}
           </button>
@@ -45,21 +45,21 @@ function ConditionRow({ headers, cond, onChange, onRemove }) {
     <div className="flex items-center gap-1.5">
       <select value={cond.column} onChange={e => onChange({ ...cond, column: e.target.value })}
         className="rounded px-1.5 py-0.5 outline-none"
-        style={{ fontSize: 11, border: '1px solid #D6CFC2', background: '#FFFFFF', color: '#44403C', fontFamily: 'JetBrains Mono, monospace' }}>
+        style={{ fontSize: 11, border: '1px solid #BDCFDF', background: '#FFFFFF', color: '#1F3547', fontFamily: 'JetBrains Mono, monospace' }}>
         {headers.map(h => <option key={h} value={h}>{h}</option>)}
       </select>
       <select value={cond.op} onChange={e => onChange({ ...cond, op: e.target.value })}
         className="rounded px-1.5 py-0.5 outline-none"
-        style={{ fontSize: 11, border: '1px solid #D6CFC2', background: '#FFFFFF', color: '#44403C', fontFamily: 'JetBrains Mono, monospace' }}>
+        style={{ fontSize: 11, border: '1px solid #BDCFDF', background: '#FFFFFF', color: '#1F3547', fontFamily: 'JetBrains Mono, monospace' }}>
         {OPS.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
       <input value={cond.value} onChange={e => onChange({ ...cond, value: e.target.value })}
         placeholder="值"
         className="flex-1 rounded px-1.5 py-0.5 outline-none"
-        style={{ fontSize: 11, border: '1px solid #D6CFC2', background: '#FFFFFF', color: '#1C1917', fontFamily: 'JetBrains Mono, monospace', minWidth: 0 }} />
+        style={{ fontSize: 11, border: '1px solid #BDCFDF', background: '#FFFFFF', color: '#1A2B3C', fontFamily: 'JetBrains Mono, monospace', minWidth: 0 }} />
       <button onClick={onRemove}
         className="w-5 h-5 flex items-center justify-center rounded flex-shrink-0"
-        style={{ color: '#A8A29E' }}>
+        style={{ color: '#7A99AE' }}>
         <X size={10} />
       </button>
     </div>
@@ -76,15 +76,15 @@ function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, 
 
   return (
     <div className="px-4 py-2.5 border-b flex-shrink-0 space-y-2"
-      style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.6)' }}>
+      style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.6)' }}>
       {/* Column picker */}
       <div className="flex items-start gap-2">
-        <span style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, paddingTop: 2 }}>
+        <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, paddingTop: 2 }}>
           列
         </span>
         {headers.length > 0
           ? <ColumnPicker headers={headers} selected={selectedColumns} onChange={onColumnsChange} />
-          : <span style={{ fontSize: 11, color: '#C4BEB7' }}>—</span>
+          : <span style={{ fontSize: 11, color: '#9DB5C7' }}>—</span>
         }
       </div>
 
@@ -97,7 +97,7 @@ function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, 
         ))}
         <button onClick={addCondition} disabled={!headers.length}
           className="flex items-center gap-1 text-xs"
-          style={{ color: '#A8A29E' }}>
+          style={{ color: '#7A99AE' }}>
           <Plus size={10} />筛选行
         </button>
       </div>
@@ -143,7 +143,7 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
 
   if (!headers.length) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ color: '#C4BEB7', fontSize: 12 }}>
+      <div className="flex-1 flex items-center justify-center" style={{ color: '#9DB5C7', fontSize: 12 }}>
         选择左侧文件预览数据
       </div>
     )
@@ -155,10 +155,10 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
         style={{ fontSize: 11.5, fontFamily: 'JetBrains Mono, monospace' }}>
         <table className="w-full border-collapse">
           <thead>
-            <tr style={{ background: '#FAF6ED', borderBottom: '1px solid #E7E0D1', position: 'sticky', top: 0 }}>
+            <tr style={{ background: '#F0F7FC', borderBottom: '1px solid #CFE0ED', position: 'sticky', top: 0 }}>
               {visibleCols.map(h => (
                 <th key={h} className="px-2 py-1.5 text-left"
-                  style={{ borderRight: '1px solid #F1ECE0', fontWeight: 500, color: '#57534E', minWidth: 70, background: '#FAF6ED' }}>
+                  style={{ borderRight: '1px solid #DDF0FB', fontWeight: 500, color: '#2E4A5E', minWidth: 70, background: '#F0F7FC' }}>
                   {h}
                 </th>
               ))}
@@ -166,10 +166,10 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
           </thead>
           <tbody>
             {pageRows.map((row, ri) => (
-              <tr key={ri} style={{ borderBottom: '1px solid #F9F6F0' }}>
+              <tr key={ri} style={{ borderBottom: '1px solid #EEF5FB' }}>
                 {colIdxs.map(ci => (
                   <td key={ci} className="px-2 py-1"
-                    style={{ borderRight: '1px solid #F9F6F0', color: '#1C1917' }}>
+                    style={{ borderRight: '1px solid #EEF5FB', color: '#1A2B3C' }}>
                     {row[ci] ?? ''}
                   </td>
                 ))}
@@ -180,15 +180,15 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
       </div>
       {/* Pagination + row count */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace', color: '#A8A29E' }}>
+        style={{ borderColor: '#CFE0ED', fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace', color: '#7A99AE' }}>
         <span>{filtered.length} 行（共 {rows.length} 行）</span>
         {totalPages > 1 && (
           <div className="flex items-center gap-1.5">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              style={{ color: page === 0 ? '#D6CFC2' : '#78716C' }}>‹</button>
+              style={{ color: page === 0 ? '#BDCFDF' : '#4A6478' }}>‹</button>
             <span>{page + 1} / {totalPages}</span>
             <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              style={{ color: page >= totalPages - 1 ? '#D6CFC2' : '#78716C' }}>›</button>
+              style={{ color: page >= totalPages - 1 ? '#BDCFDF' : '#4A6478' }}>›</button>
           </div>
         )}
       </div>
@@ -260,22 +260,22 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
 
   return (
     <div className="px-4 py-2.5 border-t flex-shrink-0 space-y-2"
-      style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.6)' }}>
+      style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.6)' }}>
       <div className="flex items-center gap-2">
-        <span style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>
+        <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>
           导出到
         </span>
         {!showNew ? (
           <>
             <select value={targetTaskId} onChange={e => setTargetTaskId(e.target.value)}
               className="flex-1 rounded px-1.5 py-0.5 outline-none"
-              style={{ fontSize: 11, border: '1px solid #D6CFC2', background: '#FFFFFF', color: '#44403C', fontFamily: 'JetBrains Mono, monospace' }}>
+              style={{ fontSize: 11, border: '1px solid #BDCFDF', background: '#FFFFFF', color: '#1F3547', fontFamily: 'JetBrains Mono, monospace' }}>
               <option value="">选择任务…</option>
               {tasks.map(t => <option key={t.task_id} value={t.task_id}>{t.task_id}</option>)}
             </select>
             <button onClick={() => { setShowNew(true); setTargetTaskId('') }}
               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs flex-shrink-0"
-              style={{ border: '1px solid #D6CFC2', color: '#78716C' }}>
+              style={{ border: '1px solid #BDCFDF', color: '#4A6478' }}>
               <Plus size={10} />新建
             </button>
           </>
@@ -285,10 +285,10 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
               placeholder="任务名称"
               autoFocus
               className="flex-1 rounded px-1.5 py-0.5 outline-none"
-              style={{ fontSize: 11, border: '1px solid #1C1917', background: '#FFFFFF', color: '#1C1917', fontFamily: 'JetBrains Mono, monospace' }} />
+              style={{ fontSize: 11, border: '1px solid #1A2B3C', background: '#FFFFFF', color: '#1A2B3C', fontFamily: 'JetBrains Mono, monospace' }} />
             <button onClick={() => { setShowNew(false); setNewTaskName('') }}
               className="flex-shrink-0"
-              style={{ color: '#A8A29E' }}>
+              style={{ color: '#7A99AE' }}>
               <X size={12} />
             </button>
           </>
@@ -296,7 +296,7 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
       </div>
 
       <div className="flex items-center gap-2">
-        <span style={{ fontSize: 11, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>
+        <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
           {filteredCount} 行
           {selectedFile ? ` · ${selectedFile}` : ''}
         </span>
@@ -305,15 +305,15 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
           disabled={exporting || !selectedFile || (!targetTaskId && !showNew)}
           className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
           style={{
-            background: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#E7E0D1' : '#1C1917',
-            color: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#A8A29E' : '#F5F1EA',
+            background: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#CFE0ED' : '#1A2B3C',
+            color: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#7A99AE' : '#EBF4FA',
           }}>
           {exporting ? '导出中…' : '导出到任务 ▶'}
         </button>
       </div>
 
       {result && (
-        <div style={{ fontSize: 11, color: result.startsWith('✓') ? '#0F766E' : '#DC2626', fontFamily: 'JetBrains Mono, monospace' }}>
+        <div style={{ fontSize: 11, color: result.startsWith('✓') ? '#1A7DC4' : '#DC2626', fontFamily: 'JetBrains Mono, monospace' }}>
           {result}
         </div>
       )}
@@ -381,8 +381,8 @@ export function ExperimentPanel() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center px-4 py-3 border-b flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.4)' }}>
-        <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#A8A29E' }}>EXPERIMENT</span>
+        style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.4)' }}>
+        <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#7A99AE' }}>EXPERIMENT</span>
         <span className="ml-2" style={{ fontSize: 14, fontFamily: 'Fraunces, serif', fontWeight: 500, fontStyle: 'italic' }}>
           {activeExperimentId}
         </span>
@@ -392,11 +392,11 @@ export function ExperimentPanel() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* Left: file list (280px) */}
-        <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: 280, borderRight: '1px solid #E7E0D1' }}>
+        <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: 280, borderRight: '1px solid #CFE0ED' }}>
           {/* Actions */}
-          <div className="flex gap-2 px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: '#E7E0D1' }}>
+          <div className="flex gap-2 px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
             <label className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md cursor-pointer"
-              style={{ fontSize: 11.5, border: '1px solid #D6CFC2', color: '#44403C' }}>
+              style={{ fontSize: 11.5, border: '1px solid #BDCFDF', color: '#1F3547' }}>
               <Upload size={11} />上传文件
               <input type="file" multiple className="hidden"
                 onChange={e => Array.from(e.target.files).forEach(upload)} />
@@ -406,9 +406,9 @@ export function ExperimentPanel() {
               className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md"
               style={{
                 fontSize: 11.5, border: '1px solid',
-                borderColor: ingestActive ? '#0F766E' : '#D6CFC2',
-                color: ingestActive ? '#0F766E' : '#44403C',
-                background: ingestActive ? 'rgba(15,118,110,0.06)' : 'transparent',
+                borderColor: ingestActive ? '#1A7DC4' : '#BDCFDF',
+                color: ingestActive ? '#1A7DC4' : '#1F3547',
+                background: ingestActive ? 'rgba(26,125,196,0.06)' : 'transparent',
               }}>
               <Radio size={11} />
               {ingestActive ? '接收中…' : '实时接收'}
@@ -418,7 +418,7 @@ export function ExperimentPanel() {
           {/* File list */}
           <div className="flex-1 overflow-y-auto py-1">
             {files.length === 0 ? (
-              <div className="flex items-center justify-center h-full" style={{ color: '#C4BEB7', fontSize: 12 }}>
+              <div className="flex items-center justify-center h-full" style={{ color: '#9DB5C7', fontSize: 12 }}>
                 还没有原始数据文件
               </div>
             ) : (
@@ -427,15 +427,15 @@ export function ExperimentPanel() {
                   onClick={() => setSelectedFile(f.name === selectedFile ? null : f.name)}
                   className="w-full text-left flex items-center gap-2 px-3 py-2 transition"
                   style={{
-                    background: f.name === selectedFile ? 'rgba(28,25,23,0.06)' : 'transparent',
-                    borderBottom: '1px solid #F9F6F0',
+                    background: f.name === selectedFile ? 'rgba(26,43,60,0.06)' : 'transparent',
+                    borderBottom: '1px solid #EEF5FB',
                   }}>
-                  <span style={{ fontSize: 9, color: f.name === selectedFile ? '#1C1917' : '#A8A29E', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: f.name === selectedFile ? '#1A2B3C' : '#7A99AE', flexShrink: 0 }}>
                     {f.name === selectedFile ? '●' : '○'}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="truncate" style={{ fontSize: 12, color: '#1C1917' }}>{f.name}</div>
-                    <div style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>{fmt(f.size)}</div>
+                    <div className="truncate" style={{ fontSize: 12, color: '#1A2B3C' }}>{f.name}</div>
+                    <div style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>{fmt(f.size)}</div>
                   </div>
                 </button>
               ))
@@ -448,14 +448,14 @@ export function ExperimentPanel() {
           {ingestActive ? (
             /* Ingest panel */
             <div className="flex-1 flex flex-col p-4 gap-3">
-              <div className="rounded-md p-3" style={{ background: 'rgba(15,118,110,0.06)', border: '1px solid rgba(15,118,110,0.2)' }}>
-                <div style={{ fontSize: 10, color: '#0F766E', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}>ENDPOINT</div>
+              <div className="rounded-md p-3" style={{ background: 'rgba(26,125,196,0.06)', border: '1px solid rgba(26,125,196,0.2)' }}>
+                <div style={{ fontSize: 10, color: '#1A7DC4', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}>ENDPOINT</div>
                 <code style={{ fontSize: 10.5, color: '#134E4A', wordBreak: 'break-all' }}>{ingestEndpoint}</code>
-                <div className="mt-2" style={{ fontSize: 10.5, color: '#0F766E' }}>
+                <div className="mt-2" style={{ fontSize: 10.5, color: '#1A7DC4' }}>
                   POST ndjson → <code style={{ fontSize: 10 }}>stream.jsonl</code>
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: '#78716C' }}>
+              <div style={{ fontSize: 12, color: '#4A6478' }}>
                 等待数据流接入…
               </div>
             </div>
@@ -472,7 +472,7 @@ export function ExperimentPanel() {
 
               {/* Data table */}
               {loadingPreview ? (
-                <div className="flex-1 flex items-center justify-center pulse-soft" style={{ color: '#A8A29E', fontSize: 12 }}>
+                <div className="flex-1 flex items-center justify-center pulse-soft" style={{ color: '#7A99AE', fontSize: 12 }}>
                   加载中…
                 </div>
               ) : (

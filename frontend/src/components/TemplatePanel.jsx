@@ -122,7 +122,7 @@ function TemplateCard({ template, onUse }) {
       onClick={() => onUse(template.prompt)}
       className="w-full text-left rounded-lg border p-3 transition group"
       style={{
-        borderColor: '#E7E0D1',
+        borderColor: '#CFE0ED',
         background: 'rgba(255,255,255,0.5)',
       }}
       onMouseEnter={e => {
@@ -130,22 +130,22 @@ function TemplateCard({ template, onUse }) {
         e.currentTarget.style.background = `${template.color}08`
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.borderColor = '#E7E0D1'
+        e.currentTarget.style.borderColor = '#CFE0ED'
         e.currentTarget.style.background = 'rgba(255,255,255,0.5)'
       }}
     >
       <div className="flex items-center gap-2 mb-1">
         <Icon size={14} style={{ color: template.color }} />
-        <span style={{ fontSize: 12.5, fontWeight: 500, color: '#1C1917' }}>{template.name}</span>
-        <span style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>{template.nameEn}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: '#1A2B3C' }}>{template.name}</span>
+        <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>{template.nameEn}</span>
       </div>
-      <div style={{ fontSize: 11, color: '#78716C', lineHeight: 1.4 }}>
+      <div style={{ fontSize: 11, color: '#4A6478', lineHeight: 1.4 }}>
         {template.description}
       </div>
       <div className="flex gap-1 mt-1.5">
         {template.tags.map(tag => (
           <span key={tag} className="px-1.5 py-0.5 rounded"
-            style={{ fontSize: 9.5, background: '#F1ECE0', color: '#78716C' }}>
+            style={{ fontSize: 9.5, background: '#DDF0FB', color: '#4A6478' }}>
             {tag}
           </span>
         ))}
@@ -161,12 +161,12 @@ function JournalButton({ preset, onUse }) {
     <button
       onClick={() => onUse(preset.prompt)}
       className="text-left rounded-md border px-2.5 py-2 transition"
-      style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.4)' }}
+      style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.4)' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C3AED'; e.currentTarget.style.background = 'rgba(124,58,237,0.04)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E7E0D1'; e.currentTarget.style.background = 'rgba(255,255,255,0.4)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#CFE0ED'; e.currentTarget.style.background = 'rgba(255,255,255,0.4)' }}
     >
-      <div style={{ fontSize: 12, fontWeight: 500, color: '#1C1917' }}>{preset.name}</div>
-      <div style={{ fontSize: 10, color: '#A8A29E', marginTop: 1 }}>{preset.description}</div>
+      <div style={{ fontSize: 12, fontWeight: 500, color: '#1A2B3C' }}>{preset.name}</div>
+      <div style={{ fontSize: 10, color: '#7A99AE', marginTop: 1 }}>{preset.description}</div>
     </button>
   )
 }
@@ -179,13 +179,13 @@ export function TemplatePanel({ onSendMessage }) {
   return (
     <div className="flex flex-col h-full">
       {/* Section tabs */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor: '#E7E0D1' }}>
+      <div className="flex border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
         <button onClick={() => setSection('charts')}
           className="flex-1 px-3 py-2 text-center transition"
           style={{
             fontSize: 11,
             fontFamily: 'JetBrains Mono, monospace',
-            color: section === 'charts' ? '#1C1917' : '#A8A29E',
+            color: section === 'charts' ? '#1A2B3C' : '#7A99AE',
             borderBottom: section === 'charts' ? '2px solid #7C3AED' : '2px solid transparent',
           }}>
           图表模板
@@ -195,7 +195,7 @@ export function TemplatePanel({ onSendMessage }) {
           style={{
             fontSize: 11,
             fontFamily: 'JetBrains Mono, monospace',
-            color: section === 'journals' ? '#1C1917' : '#A8A29E',
+            color: section === 'journals' ? '#1A2B3C' : '#7A99AE',
             borderBottom: section === 'journals' ? '2px solid #7C3AED' : '2px solid transparent',
           }}>
           期刊规范
@@ -206,7 +206,7 @@ export function TemplatePanel({ onSendMessage }) {
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {section === 'charts' ? (
           <div className="flex flex-col gap-2.5">
-            <div style={{ fontSize: 10, color: '#A8A29E', marginBottom: 2 }}>
+            <div style={{ fontSize: 10, color: '#7A99AE', marginBottom: 2 }}>
               点击模板，Agent 会基于你的数据生成对应图表
             </div>
             {TEMPLATES.map(t => (
@@ -215,7 +215,7 @@ export function TemplatePanel({ onSendMessage }) {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <div style={{ fontSize: 10, color: '#A8A29E', marginBottom: 2 }}>
+            <div style={{ fontSize: 10, color: '#7A99AE', marginBottom: 2 }}>
               点击期刊规范，Agent 会按要求调整图表格式
             </div>
             {JOURNAL_PRESETS.map(p => (

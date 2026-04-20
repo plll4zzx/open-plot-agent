@@ -87,26 +87,26 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b flex-shrink-0"
-        style={{ borderColor: '#E7E0D1' }}>
+        style={{ borderColor: '#CFE0ED' }}>
         <div className="flex items-center gap-1.5">
           <Icon size={12} style={{ color: '#7C3AED' }} />
-          <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#57534E' }}>
+          <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#2E4A5E' }}>
             {label}
           </span>
           {isModified && (
-            <span style={{ fontSize: 9, color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+            <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
           )}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={load} title="刷新"
             className="w-5 h-5 flex items-center justify-center rounded"
-            style={{ color: '#A8A29E', border: '1px solid #E7E0D1' }}>
+            style={{ color: '#7A99AE', border: '1px solid #CFE0ED' }}>
             <RefreshCw size={9} />
           </button>
           {isModified && (
             <button onClick={save} disabled={saving}
               className="flex items-center gap-1 px-1.5 py-0.5 rounded"
-              style={{ fontSize: 10, border: '1px solid #D6CFC2', color: '#44403C' }}>
+              style={{ fontSize: 10, border: '1px solid #BDCFDF', color: '#1F3547' }}>
               <Save size={9} />
               {saving ? '…' : '保存'}
             </button>
@@ -116,7 +116,7 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
 
       {/* Content */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center" style={{ color: '#A8A29E', fontSize: 11 }}>
+        <div className="flex-1 flex items-center justify-center" style={{ color: '#7A99AE', fontSize: 11 }}>
           加载中…
         </div>
       ) : error ? (
@@ -138,7 +138,7 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
           style={{
             fontSize: 11.5,
             fontFamily: 'JetBrains Mono, monospace',
-            color: '#44403C',
+            color: '#1F3547',
             background: 'transparent',
             lineHeight: 1.6,
           }}
@@ -157,7 +157,7 @@ export function MemoryPanel() {
   if (!activeProjectId || !activeExperimentId) {
     return (
       <div className="flex-1 flex items-center justify-center px-4"
-        style={{ color: '#C4BEB7', fontSize: 12, textAlign: 'center' }}>
+        style={{ color: '#9DB5C7', fontSize: 12, textAlign: 'center' }}>
         <div>
           <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
           <div>选择一个实验或任务</div>
@@ -170,14 +170,14 @@ export function MemoryPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Tab bar */}
-      <div className="flex border-b flex-shrink-0" style={{ borderColor: '#E7E0D1' }}>
+      <div className="flex border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
         {activeTaskId && (
           <button onClick={() => setTab('task')}
             className="flex-1 px-3 py-2 text-center transition"
             style={{
               fontSize: 11,
               fontFamily: 'JetBrains Mono, monospace',
-              color: tab === 'task' ? '#1C1917' : '#A8A29E',
+              color: tab === 'task' ? '#1A2B3C' : '#7A99AE',
               borderBottom: tab === 'task' ? '2px solid #7C3AED' : '2px solid transparent',
             }}>
             Task 记忆
@@ -188,7 +188,7 @@ export function MemoryPanel() {
           style={{
             fontSize: 11,
             fontFamily: 'JetBrains Mono, monospace',
-            color: tab === 'experiment' ? '#1C1917' : '#A8A29E',
+            color: tab === 'experiment' ? '#1A2B3C' : '#7A99AE',
             borderBottom: tab === 'experiment' ? '2px solid #7C3AED' : '2px solid transparent',
           }}>
           Experiment 记忆
@@ -220,7 +220,7 @@ export function MemoryPanel() {
 
       {/* Info footer */}
       <div className="px-3 py-2 border-t flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', fontSize: 10, color: '#A8A29E', lineHeight: 1.5 }}>
+        style={{ borderColor: '#CFE0ED', fontSize: 10, color: '#7A99AE', lineHeight: 1.5 }}>
         Agent 对话摘要会自动写入 Task 记忆。你也可以手动记录偏好和决策。
       </div>
     </div>

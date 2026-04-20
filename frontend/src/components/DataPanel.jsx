@@ -43,12 +43,12 @@ function SendSelectionButton({ getSelection, onStage }) {
   }
 
   return (
-    <button onClick={handleClick}
+    <button onMouseDown={(e) => { e.preventDefault(); handleClick() }}
       className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md z-10 transition-all"
       style={{
         fontSize: 11,
-        background: '#1C1917',
-        color: '#F5F1EA',
+        background: '#1A2B3C',
+        color: '#EBF4FA',
         border: '1px solid rgba(255,255,255,0.1)',
       }}>
       <MessageSquare size={11} />
@@ -149,7 +149,7 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
     const sel = window.getSelection()
     if (!sel || !sel.toString().trim()) return null
     const text = sel.toString().trim()
-    return `[表格数据选中内容 (processed/data.csv)]\n${text}`
+    return `<table_selection source="processed/data.csv">\n${text}\n</table_selection>`
   }, [])
 
   const stageSelection = useCallback((text) => {
@@ -170,12 +170,12 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
         tabIndex={0}
         onPaste={handlePaste}
         className="mx-4 mt-3 mb-2 rounded-md border-2 border-dashed px-3 py-2.5 flex items-center gap-2 cursor-text focus:outline-none"
-        style={{ borderColor: '#D6CFC2', background: 'rgba(255,255,255,0.4)', fontSize: 12, color: '#57534E' }}
+        style={{ borderColor: '#BDCFDF', background: 'rgba(255,255,255,0.4)', fontSize: 12, color: '#2E4A5E' }}
         onClick={() => pasteRef.current?.focus()}
       >
         <span style={{ fontSize: 16 }}>📋</span>
         <span>从 Excel / Numbers 粘贴</span>
-        <label className="ml-auto flex items-center gap-1 cursor-pointer" style={{ color: '#A8A29E', fontSize: 11 }}>
+        <label className="ml-auto flex items-center gap-1 cursor-pointer" style={{ color: '#7A99AE', fontSize: 11 }}>
           <Upload size={11} />
           <span>上传文件</span>
           <input type="file" accept=".csv,.tsv,.xlsx,.json" className="hidden"
@@ -190,45 +190,47 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center" style={{ color: '#C4BEB7', fontSize: 12 }}>
+        <div className="flex-1 flex items-center justify-center" style={{ color: '#9DB5C7', fontSize: 12 }}>
           粘贴数据后在此显示
         </div>
       ) : (
         <>
           {/* Toolbar */}
           <div className="flex items-center gap-2 px-4 mb-1">
-            <span style={{ fontSize: 11, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>
+            <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
               {body.length} 行 × {header.length} 列
             </span>
-            <span style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>
+            <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
               双击编辑 · Shift+点击扩选 · ⌘C/⌘V
             </span>
             <button onClick={addRow} title="新增一行"
               className="ml-auto flex items-center gap-0.5 px-1.5 h-6 rounded"
-              style={{ fontSize: 10.5, color: '#78716C', border: '1px solid #E7E0D1', fontFamily: 'JetBrains Mono, monospace' }}>
+              style={{ fontSize: 10.5, color: '#4A6478', border: '1px solid #CFE0ED', fontFamily: 'JetBrains Mono, monospace' }}>
               <Plus size={10} />行
             </button>
             <button onClick={addCol} title="新增一列"
               className="flex items-center gap-0.5 px-1.5 h-6 rounded"
-              style={{ fontSize: 10.5, color: '#78716C', border: '1px solid #E7E0D1', fontFamily: 'JetBrains Mono, monospace' }}>
+              style={{ fontSize: 10.5, color: '#4A6478', border: '1px solid #CFE0ED', fontFamily: 'JetBrains Mono, monospace' }}>
               <Plus size={10} />列
             </button>
             <button onClick={transpose} title="转置"
               className="w-6 h-6 flex items-center justify-center rounded"
-              style={{ color: '#78716C', border: '1px solid #E7E0D1' }}>
+              style={{ color: '#4A6478', border: '1px solid #CFE0ED' }}>
               <ArrowLeftRight size={11} />
             </button>
             <button onClick={() => { setRows([]); setSaved(false) }} title="清空"
               className="w-6 h-6 flex items-center justify-center rounded"
-              style={{ color: '#78716C', border: '1px solid #E7E0D1' }}>
+              style={{ color: '#4A6478', border: '1px solid #CFE0ED' }}>
               <RefreshCw size={11} />
             </button>
           </div>
 
-          {/* Table */}
-          <div className="flex-1 overflow-hidden mx-4 mb-3 rounded-md border flex"
-            style={{ borderColor: '#E7E0D1', background: '#FFFFFF' }}>
-            <DataGrid rows={rows} onChange={handleGridChange} types={types} />
+          {/* Table — explicit block container so AG Grid can measure height */}
+          <div className="flex-1 overflow-hidden mx-4 mb-3 rounded-md border"
+            style={{ borderColor: '#CFE0ED', background: '#FFFFFF', display: 'block', position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <DataGrid rows={rows} onChange={handleGridChange} types={types} />
+            </div>
           </div>
 
           {/* Send selection button */}
@@ -257,8 +259,8 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
           <button onClick={saveToBackend}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs"
             style={{
-              border: '1px solid #D6CFC2', color: saved ? '#0F766E' : '#44403C',
-              background: saved ? 'rgba(15,118,110,0.06)' : 'transparent'
+              border: '1px solid #BDCFDF', color: saved ? '#1A7DC4' : '#1F3547',
+              background: saved ? 'rgba(26,125,196,0.06)' : 'transparent'
             }}>
             {saved ? '✓ 已保存' : '保存到 processed/data.csv'}
           </button>
@@ -278,6 +280,7 @@ export function ScriptTab({ onStageToChat }) {
   const [running, setRunning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [output, setOutput] = useState(null)
+  const [monacoSelection, setMonacoSelection] = useState('')
 
   const isModified = code !== savedCode
 
@@ -347,14 +350,6 @@ export function ScriptTab({ onStageToChat }) {
     }
   }
 
-  // Get selected code text (works for CodeMirror contenteditable selection)
-  const getCodeSelection = useCallback(() => {
-    const sel = window.getSelection()
-    const text = sel?.toString() ?? ''
-    if (!text.trim()) return null
-    return `[代码选中内容 (chart/plot.py)]\n\`\`\`python\n${text}\n\`\`\``
-  }, [])
-
   const stageSelection = useCallback((text) => {
     if (onStageToChat && text) {
       onStageToChat(text)
@@ -364,13 +359,13 @@ export function ScriptTab({ onStageToChat }) {
   return (
     <div className="flex flex-col h-full relative">
       <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
-        style={{ borderColor: '#E7E0D1' }}>
+        style={{ borderColor: '#CFE0ED' }}>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 11, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>chart/plot.py</span>
+          <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>chart/plot.py</span>
           {isModified && (
-            <span style={{ fontSize: 9, color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+            <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
           )}
-          <span style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>
+          <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
             ⌘F 查找 · ⌘H 替换 · ⌘S 保存
           </span>
         </div>
@@ -378,33 +373,42 @@ export function ScriptTab({ onStageToChat }) {
           {isModified && (
             <button onClick={saveCode} disabled={saving}
               className="flex items-center gap-1 px-2 py-1 rounded-md"
-              style={{ fontSize: 11, border: '1px solid #D6CFC2', color: '#44403C' }}>
+              style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
               {saving ? '保存中…' : '保存'}
             </button>
           )}
           <button onClick={run} disabled={running}
             className="flex items-center gap-1 px-2 py-1 rounded-md"
-            style={{ fontSize: 11, background: running ? '#E7E0D1' : '#1C1917', color: running ? '#A8A29E' : '#F5F1EA' }}>
+            style={{ fontSize: 11, background: running ? '#CFE0ED' : '#1A2B3C', color: running ? '#7A99AE' : '#EBF4FA' }}>
             {running ? <RotateCw size={10} className="spin" /> : <Play size={10} />}
             {running ? '运行中…' : '▶ 运行'}
           </button>
         </div>
       </div>
       <div className="flex-1 flex overflow-hidden">
-        <CodeEditor value={code} onChange={setCode} onSave={saveCode} />
+        <CodeEditor value={code} onChange={setCode} onSave={saveCode} onSelectionChange={setMonacoSelection} />
       </div>
 
-      {/* Send selection button */}
-      <SendSelectionButton
-        getSelection={getCodeSelection}
-        onStage={stageSelection}
-      />
+      {/* Monaco selection → Add to chat */}
+      {monacoSelection && (
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault()
+            const text = `<code_selection source="chart/plot.py">\n\`\`\`python\n${monacoSelection}\n\`\`\`\n</code_selection>`
+            stageSelection(text)
+          }}
+          className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md z-10 transition-all"
+          style={{ fontSize: 11, background: '#1A2B3C', color: '#EBF4FA', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <MessageSquare size={11} />
+          添加到对话框
+        </button>
+      )}
 
       {output && (
         <div className="px-4 py-2 border-t flex-shrink-0"
-          style={{ borderColor: '#E7E0D1', fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
-            color: output.ok ? '#0F766E' : '#DC2626',
-            background: output.ok ? 'rgba(15,118,110,0.04)' : 'rgba(220,38,38,0.04)' }}>
+          style={{ borderColor: '#CFE0ED', fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+            color: output.ok ? '#1A7DC4' : '#DC2626',
+            background: output.ok ? 'rgba(26,125,196,0.04)' : 'rgba(220,38,38,0.04)' }}>
           {output.text}
         </div>
       )}

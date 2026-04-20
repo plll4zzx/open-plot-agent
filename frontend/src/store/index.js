@@ -2,6 +2,14 @@ import { create } from 'zustand'
 
 const API = ''  // proxied via vite
 
+const DARK_EDITOR_THEMES = new Set(['one-dark-pro', 'dracula', 'nord', 'monokai'])
+
+// Apply initial theme on module load
+;(function applyInitialTheme() {
+  const t = localStorage.getItem('editorTheme') || 'openplot-light'
+  document.documentElement.setAttribute('data-theme', DARK_EDITOR_THEMES.has(t) ? 'dark' : 'light')
+})()
+
 export const useStore = create((set, get) => ({
   // ── Projects ──────────────────────────────────────────────
   projects: [],
@@ -171,12 +179,40 @@ export const useStore = create((set, get) => ({
   setChatSession: (taskId, messages) =>
     set(state => ({ chatSessions: { ...state.chatSessions, [taskId]: messages } })),
 
-  // ── Chat composer draft (shared, not per-task) ────────────
-  chatDraft: '',
-  setChatDraft: (text) => set({ chatDraft: typeof text === 'function' ? text(get().chatDraft) : text }),
-  appendChatDraft: (text) => set(state => ({
-    chatDraft: state.chatDraft
-      ? `${state.chatDraft.replace(/\s+$/, '')}\n\n${text}\n`
-      : `${text}\n`,
+  // ── Chat composer draft ───────────────────────────────────────
+  chatDraftText: '',
+  chatDraftContext: [],  // [{id, type, source, content}]
+
+  setChatDraftText: (text) => set({ chatDraftText: text }),
+
+  appendChatDraft: (text) => {
+    // Detect structured context blocks by XML tag
+    const m = text.match(/^<(table_selection|code_selection|version_reference)(?:\s+source="([^"]*)")?/)
+    if (m) {
+      const type = m[1]
+      const source = m[2] || (type === 'version_reference' ? '版本记录' : '来源')
+      const id = `ctx_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+      set(state => ({ chatDraftContext: [...state.chatDraftContext, { id, type, source, content: text.trim() }] }))
+    } else {
+      set(state => ({
+        chatDraftText: state.chatDraftText
+          ? `${state.chatDraftText.replace(/\s+$/, '')}\n\n${text}\n`
+          : `${text}\n`,
+      }))
+    }
+  },
+
+  removeChatContext: (id) => set(state => ({
+    chatDraftContext: state.chatDraftContext.filter(c => c.id !== id),
   })),
+
+  clearChatContext: () => set({ chatDraftContext: [] }),
+
+  // ── Editor theme (client-side preference) ────────────────
+  editorTheme: localStorage.getItem('editorTheme') || 'openplot-light',
+  setEditorTheme: (theme) => {
+    localStorage.setItem('editorTheme', theme)
+    document.documentElement.setAttribute('data-theme', DARK_EDITOR_THEMES.has(theme) ? 'dark' : 'light')
+    set({ editorTheme: theme })
+  },
 }))

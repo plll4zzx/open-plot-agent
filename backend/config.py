@@ -26,6 +26,12 @@ _DEFAULT: dict = {
             "model": "qwen3.6:35b",
             "base_url": "http://localhost:11434/v1",
         },
+        # LiteLLM — any model supported by litellm.ai
+        # e.g. "openai/gpt-4o", "gemini/gemini-2.0-flash", "groq/llama-3.3-70b-versatile"
+        "litellm": {
+            "model": "openai/gpt-4o",
+            "api_key_env": "OPENAI_API_KEY",
+        },
     }
 }
 
@@ -94,6 +100,15 @@ def get_provider_config(provider_name: str | None = None) -> tuple[str, Provider
                 "thinking_budget": cfg.get("thinking_budget", 4096),
             },
         )
+    elif name == "litellm":
+        api_key = cfg.get("api_key") or os.environ.get(
+            cfg.get("api_key_env", "OPENAI_API_KEY"), ""
+        )
+        return name, ProviderConfig(
+            model=cfg.get("model", "openai/gpt-4o"),
+            api_key=api_key,
+            base_url=cfg.get("base_url", ""),
+        )
     else:
         raise ValueError(f"Unknown provider: {name}")
 
@@ -104,9 +119,13 @@ def get_settings_dict() -> dict:
     prov = raw.get("provider", {})
     anth = prov.get("anthropic", {})
     oll = prov.get("ollama", {})
+    ltm = prov.get("litellm", {})
 
     anth_key = anth.get("api_key") or os.environ.get(
         anth.get("api_key_env", "ANTHROPIC_API_KEY"), ""
+    )
+    ltm_key = ltm.get("api_key") or os.environ.get(
+        ltm.get("api_key_env", "OPENAI_API_KEY"), ""
     )
 
     return {
@@ -120,6 +139,10 @@ def get_settings_dict() -> dict:
         "ollama": {
             "model": oll.get("model", "qwen3.6:35b"),
             "base_url": oll.get("base_url", "http://localhost:11434/v1"),
+        },
+        "litellm": {
+            "model": ltm.get("model", "openai/gpt-4o"),
+            "api_key_set": bool(ltm_key),
         },
     }
 
@@ -148,6 +171,11 @@ def write_settings(updates: dict) -> None:
     if "ollama_base_url" in updates:
         prov.setdefault("ollama", {})["base_url"] = updates["ollama_base_url"]
 
+    if "litellm_model" in updates:
+        prov.setdefault("litellm", {})["model"] = updates["litellm_model"]
+    if updates.get("litellm_api_key"):
+        prov.setdefault("litellm", {})["api_key"] = updates["litellm_api_key"]
+
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(_format_toml(raw))
 
@@ -160,4 +188,7 @@ def build_provider(provider_name: str | None = None):
     elif name == "ollama":
         from agent.providers.ollama_provider import OllamaProvider
         return OllamaProvider(cfg)
+    elif name == "litellm":
+        from agent.providers.litellm_provider import LiteLLMProvider
+        return LiteLLMProvider(cfg)
     raise ValueError(f"Unknown provider: {name}")

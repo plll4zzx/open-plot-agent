@@ -84,6 +84,13 @@ backend Python process. If one of them returns a `backend_dependency_missing` \
 hint, STOP and tell the user to install it into their backend venv — don't \
 retry with install_package.
 
+## Knowledge tools (semantic search over past charts)
+- **search_charts(query, k?)** — Search your history of successfully generated charts by semantic \
+similarity. Returns matching plot.py code examples. \
+Use when the user asks for something "similar to" a past chart, or when you want reference code \
+for a chart type you haven't written recently (e.g. "violin plot with significance bars", \
+"heatmap with dendrograms"). k defaults to 3.
+
 ## Required workflow
 0. **Recall preferences** (first turn in a task only): quickly call memory_read('global') \
 and memory_read('project') to pick up any standing style/journal/palette preferences. \
@@ -416,6 +423,20 @@ class AgentLoop:
                     output=result,
                     ok=ok,
                 ))
+
+            # ── Auto-index successful charts into RAG ─────────────────────
+            for tc, res, ok in results:
+                if tc.name == "execute_python" and ok:
+                    plot_py = self.task_dir / "chart" / "plot.py"
+                    if plot_py.exists():
+                        try:
+                            from agent.rag.chart_rag import get_rag
+                            get_rag().index_chart(
+                                code=plot_py.read_text(),
+                                metadata={"task_dir": str(self.task_dir)},
+                            )
+                        except Exception:
+                            pass  # RAG failure must never break the agent loop
 
             # ── Auto-validate chart after execution ──────────────────────
             for tc, res, ok in results:

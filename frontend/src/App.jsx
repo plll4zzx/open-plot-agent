@@ -22,11 +22,11 @@ import './index.css'
 function SectionHeader({ num, title, subtitle, right }) {
   return (
     <div className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
-      style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.4)' }}>
+      style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.4)' }}>
       <div className="flex items-center gap-2">
-        <span className="font-mono" style={{ fontSize: 10, color: '#A8A29E' }}>{num}</span>
+        <span className="font-mono" style={{ fontSize: 10, color: '#7A99AE' }}>{num}</span>
         <span style={{ fontSize: 14, fontFamily: 'Fraunces, serif', fontWeight: 500, fontStyle: 'italic' }}>{title}</span>
-        {subtitle && <span style={{ fontSize: 11, color: '#A8A29E' }}>· {subtitle}</span>}
+        {subtitle && <span style={{ fontSize: 11, color: '#7A99AE' }}>· {subtitle}</span>}
       </div>
       {right}
     </div>
@@ -35,10 +35,10 @@ function SectionHeader({ num, title, subtitle, right }) {
 
 function GitStatusBadge({ status }) {
   const cfg = {
-    saved:   { color: '#0F766E', label: '已保存' },
-    saving:  { color: '#B45309', label: '保存中…' },
-    pending: { color: '#A8A29E', label: '等待提交' },
-  }[status] ?? { color: '#A8A29E', label: status }
+    saved:   { color: '#1A7DC4', label: '已保存' },
+    saving:  { color: '#1668A8', label: '保存中…' },
+    pending: { color: '#7A99AE', label: '等待提交' },
+  }[status] ?? { color: '#7A99AE', label: status }
   return (
     <span className="font-mono flex items-center gap-1"
       style={{ fontSize: 10.5, color: cfg.color }}>
@@ -50,8 +50,8 @@ function GitStatusBadge({ status }) {
 function Toast({ text }) {
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-md flex items-center gap-2 slide-in z-50"
-      style={{ background: '#1C1917', color: '#F5F1EA', fontSize: 12.5, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
-      <Check size={13} color="#0F766E" /><span>{text}</span>
+      style={{ background: '#1A2B3C', color: '#EBF4FA', fontSize: 12.5, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+      <Check size={13} color="#1A7DC4" /><span>{text}</span>
     </div>
   )
 }
@@ -80,54 +80,54 @@ function DashboardView({ onOpen, onNew }) {
       <div className="max-w-5xl mx-auto px-10 py-10">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="mb-2" style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#A8A29E' }}>
+            <div className="mb-2" style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#7A99AE' }}>
               WORKSPACE · {projects.length} PROJECTS
             </div>
             <h1 style={{ fontSize: 42, lineHeight: 1, letterSpacing: '-0.02em', fontFamily: 'Fraunces, serif', fontWeight: 400, margin: 0 }}>
               学术图表 <em style={{ fontStyle: 'italic', fontWeight: 500 }}>工作室</em>
             </h1>
-            <p className="mt-3" style={{ fontSize: 14, color: '#57534E' }}>
+            <p className="mt-3" style={{ fontSize: 14, color: '#2E4A5E' }}>
               用 matplotlib + PGF 输出投稿级 PDF。每次编辑 git 自动留痕。
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={loadDemo} disabled={loadingDemo}
               className="flex items-center gap-2 px-4 py-2.5 rounded-md"
-              style={{ fontSize: 13, border: '1px solid #D6CFC2', color: '#44403C', background: loadingDemo ? '#F5F1EA' : 'transparent' }}>
+              style={{ fontSize: 13, border: '1px solid #BDCFDF', color: '#1F3547', background: loadingDemo ? '#EBF4FA' : 'transparent' }}>
               {loadingDemo ? '加载中…' : '加载 Demo'}
             </button>
             <button onClick={onNew} className="flex items-center gap-2 px-4 py-2.5 rounded-md font-medium"
-              style={{ fontSize: 13, background: '#1C1917', color: '#F5F1EA' }}>
+              style={{ fontSize: 13, background: '#1A2B3C', color: '#EBF4FA' }}>
               <Plus size={14} />新建项目
             </button>
           </div>
         </div>
 
         <div className="mb-6 flex items-center gap-2 rounded-md px-3 py-2"
-          style={{ background: '#FFFFFF', border: '1px solid #E7E0D1' }}>
-          <Search size={14} style={{ color: '#A8A29E' }} />
+          style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
+          <Search size={14} style={{ color: '#7A99AE' }} />
           <input placeholder="搜索项目…" className="flex-1 outline-none bg-transparent" style={{ fontSize: 13 }} />
         </div>
 
         {projectsLoading ? (
-          <div className="text-center py-20 pulse-soft" style={{ fontSize: 13, color: '#A8A29E' }}>加载中…</div>
+          <div className="text-center py-20 pulse-soft" style={{ fontSize: 13, color: '#7A99AE' }}>加载中…</div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20" style={{ fontSize: 13, color: '#A8A29E' }}>还没有项目，点击新建开始</div>
+          <div className="text-center py-20" style={{ fontSize: 13, color: '#7A99AE' }}>还没有项目，点击新建开始</div>
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
             {projects.map(p => (
               <button key={p.project_id} onClick={() => onOpen(p.project_id)}
                 className="text-left rounded-xl p-5 transition hover:-translate-y-0.5"
-                style={{ background: '#FFFFFF', border: '1px solid #E7E0D1' }}>
+                style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
                 <h3 style={{ fontSize: 16, fontFamily: 'Fraunces, serif', fontWeight: 500 }}>{p.project_id}</h3>
-                <p className="mt-1 font-mono" style={{ fontSize: 11, color: '#A8A29E' }}>{p.path}</p>
+                <p className="mt-1 font-mono" style={{ fontSize: 11, color: '#7A99AE' }}>{p.path}</p>
               </button>
             ))}
             <button onClick={onNew}
               className="rounded-xl flex flex-col items-center justify-center gap-2 py-12"
-              style={{ border: '1.5px dashed #D6CFC2', background: 'rgba(255,255,255,0.3)' }}>
-              <Plus size={18} style={{ color: '#78716C' }} />
-              <span style={{ fontSize: 13, fontFamily: 'Fraunces, serif', fontStyle: 'italic', color: '#44403C' }}>新建项目</span>
+              style={{ border: '1.5px dashed #BDCFDF', background: 'rgba(255,255,255,0.3)' }}>
+              <Plus size={18} style={{ color: '#4A6478' }} />
+              <span style={{ fontSize: 13, fontFamily: 'Fraunces, serif', fontStyle: 'italic', color: '#1F3547' }}>新建项目</span>
             </button>
           </div>
         )}
@@ -151,23 +151,23 @@ function NewProjectModal({ onClose, onCreate }) {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center z-50"
-      style={{ background: 'rgba(28,25,23,0.4)', backdropFilter: 'blur(6px)' }}>
+      style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
-        style={{ background: '#FAF6ED', border: '1px solid #E7E0D1' }}>
+        style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
         <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建项目</h3>
         <input value={name} onChange={e => setName(e.target.value)}
           placeholder="项目名称（如 Nature 2026）"
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
-          style={{ fontSize: 13, border: '1px solid #D6CFC2', background: '#FFFFFF' }} />
+          style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         <textarea value={desc} onChange={e => setDesc(e.target.value)}
           placeholder="描述（可选）" rows={2}
           className="w-full rounded-md px-3 py-2 outline-none resize-none mb-4"
-          style={{ fontSize: 13, border: '1px solid #D6CFC2', background: '#FFFFFF' }} />
+          style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #D6CFC2', color: '#57534E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1C1917', color: '#F5F1EA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
         </div>
       </div>
     </div>
@@ -187,20 +187,20 @@ function NewExperimentModal({ onClose, onCreate }) {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center z-50"
-      style={{ background: 'rgba(28,25,23,0.4)', backdropFilter: 'blur(6px)' }}>
+      style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
-        style={{ background: '#FAF6ED', border: '1px solid #E7E0D1' }}>
+        style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
         <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建实验</h3>
         <input value={name} onChange={e => setName(e.target.value)}
           placeholder="实验名称（如 exp-baseline）"
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
-          style={{ fontSize: 13, border: '1px solid #D6CFC2', background: '#FFFFFF' }} />
+          style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         {experiments.length > 0 && (
           <div className="mb-4">
-            <label style={{ fontSize: 11, color: '#78716C', display: 'block', marginBottom: 4 }}>复制原始数据自（可选）</label>
+            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>复制原始数据自（可选）</label>
             <select value={copyFrom} onChange={e => setCopyFrom(e.target.value)}
               className="w-full rounded-md px-3 py-2 outline-none"
-              style={{ fontSize: 12.5, border: '1px solid #D6CFC2', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
+              style={{ fontSize: 12.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
               <option value="">不复制</option>
               {experiments.map(e => (
                 <option key={e.experiment_id} value={e.experiment_id}>{e.experiment_id}</option>
@@ -210,9 +210,9 @@ function NewExperimentModal({ onClose, onCreate }) {
         )}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #D6CFC2', color: '#57534E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1C1917', color: '#F5F1EA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
         </div>
       </div>
     </div>
@@ -232,20 +232,20 @@ function NewTaskModal({ onClose, onCreate }) {
 
   return (
     <div className="absolute inset-0 flex items-center justify-center z-50"
-      style={{ background: 'rgba(28,25,23,0.4)', backdropFilter: 'blur(6px)' }}>
+      style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
-        style={{ background: '#FAF6ED', border: '1px solid #E7E0D1' }}>
+        style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
         <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建任务</h3>
         <input value={name} onChange={e => setName(e.target.value)}
           placeholder="任务名称（如 Fig.2 时间演化）"
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
-          style={{ fontSize: 13, border: '1px solid #D6CFC2', background: '#FFFFFF' }} />
+          style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         {tasks.length > 0 && (
           <div className="mb-4">
-            <label style={{ fontSize: 11, color: '#78716C', display: 'block', marginBottom: 4 }}>复制数据/脚本自（可选）</label>
+            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>复制数据/脚本自（可选）</label>
             <select value={copyFrom} onChange={e => setCopyFrom(e.target.value)}
               className="w-full rounded-md px-3 py-2 outline-none"
-              style={{ fontSize: 12.5, border: '1px solid #D6CFC2', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
+              style={{ fontSize: 12.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
               <option value="">不复制</option>
               {tasks.map(t => (
                 <option key={t.task_id} value={t.task_id}>{t.task_id}</option>
@@ -255,9 +255,9 @@ function NewTaskModal({ onClose, onCreate }) {
         )}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #D6CFC2', color: '#57534E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1C1917', color: '#F5F1EA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
         </div>
       </div>
     </div>
@@ -304,10 +304,10 @@ function Sidebar({ onNewExperiment, onNewTask }) {
   }
 
   return (
-    <aside className="flex flex-col border-r overflow-hidden" style={{ borderColor: '#E7E0D1' }}>
+    <aside className="flex flex-col border-r overflow-hidden" style={{ borderColor: '#CFE0ED' }}>
       {/* Project name */}
-      <div className="px-4 py-3 border-b flex-shrink-0" style={{ borderColor: '#E7E0D1' }}>
-        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#A8A29E' }}>PROJECT</div>
+      <div className="px-4 py-3 border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
+        <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#7A99AE' }}>PROJECT</div>
         <div style={{ fontSize: 14, fontWeight: 500, fontFamily: 'Fraunces, serif', marginTop: 2 }}>{activeProjectId}</div>
       </div>
 
@@ -322,11 +322,11 @@ function Sidebar({ onNewExperiment, onNewTask }) {
             <div key={exp.experiment_id}>
               {/* Experiment row */}
               <div className="flex items-center group"
-                style={{ background: isActiveExp && !activeTaskId ? 'rgba(28,25,23,0.05)' : 'transparent' }}>
+                style={{ background: isActiveExp && !activeTaskId ? 'rgba(26,43,60,0.05)' : 'transparent' }}>
                 <button
                   onClick={() => clickExperiment(exp.experiment_id)}
                   className="flex-1 flex items-center gap-1.5 px-3 py-2 text-left transition min-w-0"
-                  style={{ color: isActiveExp ? '#1C1917' : '#78716C' }}>
+                  style={{ color: isActiveExp ? '#1A2B3C' : '#4A6478' }}>
                   <ChevronDown
                     size={10}
                     onClick={(e) => toggleExpand(e, exp.experiment_id)}
@@ -334,7 +334,7 @@ function Sidebar({ onNewExperiment, onNewTask }) {
                       flexShrink: 0,
                       transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
                       transition: 'transform 0.15s',
-                      color: '#A8A29E',
+                      color: '#7A99AE',
                       cursor: 'pointer',
                     }}
                   />
@@ -356,7 +356,7 @@ function Sidebar({ onNewExperiment, onNewTask }) {
                   onClick={async (e) => { e.stopPropagation(); await setActiveExperiment(exp.experiment_id); onNewTask() }}
                   title="新建任务"
                   className="opacity-0 group-hover:opacity-100 mr-2 w-5 h-5 flex items-center justify-center rounded transition"
-                  style={{ color: '#A8A29E', border: '1px solid #D6CFC2', flexShrink: 0 }}>
+                  style={{ color: '#7A99AE', border: '1px solid #BDCFDF', flexShrink: 0 }}>
                   <Plus size={9} />
                 </button>
               </div>
@@ -370,11 +370,11 @@ function Sidebar({ onNewExperiment, onNewTask }) {
                     paddingLeft: 24,
                     paddingRight: 12,
                     fontSize: 12,
-                    background: t.task_id === activeTaskId ? 'rgba(28,25,23,0.06)' : 'transparent',
+                    background: t.task_id === activeTaskId ? 'rgba(26,43,60,0.06)' : 'transparent',
                     fontWeight: t.task_id === activeTaskId ? 500 : 400,
-                    color: t.task_id === activeTaskId ? '#1C1917' : '#57534E',
+                    color: t.task_id === activeTaskId ? '#1A2B3C' : '#2E4A5E',
                   }}>
-                  <span style={{ fontSize: 8, color: t.has_plot ? '#0F766E' : '#C4BEB7', flexShrink: 0 }}>
+                  <span style={{ fontSize: 8, color: t.has_plot ? '#1A7DC4' : '#9DB5C7', flexShrink: 0 }}>
                     {t.has_plot ? '●' : '○'}
                   </span>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -387,17 +387,17 @@ function Sidebar({ onNewExperiment, onNewTask }) {
         })}
 
         {experiments.length === 0 && (
-          <div className="px-4 py-3 text-center" style={{ fontSize: 12, color: '#C4BEB7' }}>
+          <div className="px-4 py-3 text-center" style={{ fontSize: 12, color: '#9DB5C7' }}>
             还没有实验
           </div>
         )}
       </div>
 
       {/* Bottom actions */}
-      <div className="px-3 py-3 border-t flex-shrink-0 flex gap-2" style={{ borderColor: '#E7E0D1' }}>
+      <div className="px-3 py-3 border-t flex-shrink-0 flex gap-2" style={{ borderColor: '#CFE0ED' }}>
         <button onClick={onNewExperiment}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md"
-          style={{ fontSize: 11, border: '1px solid #D6CFC2', color: '#44403C' }}>
+          style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
           <Plus size={11} />新建实验
         </button>
       </div>
@@ -471,8 +471,6 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
         fetchSvg()
         fetchGitLog()
         showToast(`已恢复到 ${hash}`)
-        // Notify the agent about the restore via a chat message
-        send?.(`[系统] 用户已将图表恢复到 git commit ${hash}，请注意 plot.py 内容已变更`)
       } else {
         showToast('恢复失败')
       }
@@ -492,9 +490,9 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
     <div className="flex flex-col overflow-hidden h-full">
       {/* Tab bar */}
       <div className="flex items-center border-b flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.4)' }}>
+        style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.4)' }}>
         <div className="px-4 py-3 flex-shrink-0">
-          <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#A8A29E' }}>TASK</span>
+          <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#7A99AE' }}>TASK</span>
           <span className="ml-2" style={{ fontSize: 14, fontFamily: 'Fraunces, serif', fontWeight: 500, fontStyle: 'italic' }}>
             {activeTaskId ?? '—'}
           </span>
@@ -506,9 +504,9 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
               style={{
                 fontSize: 11.5,
                 fontFamily: 'JetBrains Mono, monospace',
-                color: tab === t.id ? '#1C1917' : '#A8A29E',
+                color: tab === t.id ? '#1A2B3C' : '#7A99AE',
                 fontWeight: tab === t.id ? 500 : 400,
-                borderBottom: tab === t.id ? '2px solid #1C1917' : '2px solid transparent',
+                borderBottom: tab === t.id ? '2px solid #1A2B3C' : '2px solid transparent',
                 marginBottom: -1,
               }}>
               {t.label}
@@ -528,21 +526,21 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
                   onNotice: (n) => showToast(n.text),
                 })}
                 className="flex items-center gap-0.5 px-1.5 py-1 rounded-md transition hover:bg-black/5"
-                style={{ border: '1px solid #E7E0D1' }}>
+                style={{ border: '1px solid #CFE0ED' }}>
                 {p.colors.slice(0, 4).map(c => (
                   <span key={c} style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 2, background: c }} />
                 ))}
               </button>
             ))}
-            <div className="w-px h-4 mx-0.5" style={{ background: '#E7E0D1' }} />
+            <div className="w-px h-4 mx-0.5" style={{ background: '#CFE0ED' }} />
             <button onClick={() => setShowBorders(b => !b)}
               className="w-6 h-6 flex items-center justify-center rounded"
-              style={{ color: showBorders ? '#1C1917' : '#A8A29E' }}>
+              style={{ color: showBorders ? '#1A2B3C' : '#7A99AE' }}>
               {showBorders ? <Eye size={13} /> : <EyeOff size={13} />}
             </button>
             <button onClick={() => setShowPdfBar(b => !b)}
               className="px-2 py-1 rounded-md"
-              style={{ fontSize: 11, border: '1px solid #D6CFC2', color: '#57534E' }}>
+              style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
               下载 PDF
             </button>
           </div>
@@ -561,14 +559,14 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
           <div className="flex-1 flex flex-col overflow-hidden">
             {showPdfBar && (
               <div className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
-                style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.6)' }}>
-                <span style={{ fontSize: 11, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>文件名</span>
+                style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.6)' }}>
+                <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>文件名</span>
                 <input value={pdfName} onChange={e => setPdfName(e.target.value)}
                   className="flex-1 rounded px-2 py-1 outline-none"
-                  style={{ fontSize: 11.5, border: '1px solid #D6CFC2', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }} />
+                  style={{ fontSize: 11.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }} />
                 <button onClick={downloadPdf} disabled={exportingPdf}
                   className="px-3 py-1 rounded-md text-xs font-medium flex-shrink-0"
-                  style={{ background: exportingPdf ? '#E7E0D1' : '#1C1917', color: exportingPdf ? '#A8A29E' : '#F5F1EA' }}>
+                  style={{ background: exportingPdf ? '#CFE0ED' : '#1A2B3C', color: exportingPdf ? '#7A99AE' : '#EBF4FA' }}>
                   {exportingPdf ? '生成中…' : '下载'}
                 </button>
               </div>
@@ -576,51 +574,68 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
             <div className="flex-1 relative overflow-hidden">
               <div className="absolute inset-0 flex flex-col p-6 pb-4">
                 <div className="flex-1 rounded-xl overflow-hidden chart-shadow relative"
-                  style={{ background: '#FFFFFF', border: '1px solid #E7E0D1' }}>
+                  style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
                   {!activeTaskId
-                    ? <div className="flex items-center justify-center h-full" style={{ color: '#A8A29E', fontSize: 13 }}>选择或新建一个任务</div>
+                    ? <div className="flex items-center justify-center h-full" style={{ color: '#7A99AE', fontSize: 13 }}>选择或新建一个任务</div>
                     : <SvgPreview showBorders={showBorders} onElementClick={onElementClick} />
                   }
                   {generating && (
                     <div className="absolute inset-0 flex items-center justify-center"
-                      style={{ background: 'rgba(245,241,234,0.75)', backdropFilter: 'blur(2px)' }}>
+                      style={{ background: 'rgba(235,244,250,0.75)', backdropFilter: 'blur(2px)' }}>
                       <div className="text-center pulse-soft">
                         <div style={{ fontSize: 13, fontWeight: 500 }}>Agent 正在生成…</div>
-                        <div className="mt-1 font-mono" style={{ fontSize: 11, color: '#78716C' }}>分析 → 生成代码 → 执行</div>
+                        <div className="mt-1 font-mono" style={{ fontSize: 11, color: '#4A6478' }}>分析 → 生成代码 → 执行</div>
                       </div>
                     </div>
                   )}
                 </div>
                 {gitLog.length > 0 && (
                   <div className="mt-4">
-                    <div className="flex items-center gap-2 mb-2" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#78716C' }}>
+                    <div className="flex items-center gap-2 mb-2" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#4A6478' }}>
                       <GitBranch size={11} /><span>历史</span>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      {gitLog.slice(0, 8).map((c, idx) => (
-                        <div key={c.hash} className="flex-shrink-0 rounded-lg px-3 py-2 group relative"
-                          style={{ minWidth: 140, border: '1px solid #E7E0D1', background: '#FFFFFF' }}>
-                          <div className="font-mono" style={{ fontSize: 10, color: '#A8A29E' }}>{c.hash}</div>
-                          <div className="mt-0.5 truncate" style={{ fontSize: 11, color: '#57534E' }}>{c.message}</div>
-                          <div className="font-mono mt-1 flex items-center justify-between" style={{ fontSize: 9.5, color: '#C4BEB7' }}>
-                            <span>{new Date(c.timestamp).toLocaleTimeString('zh', { hour: '2-digit', minute: '2-digit' })}</span>
-                            {idx > 0 && (
-                              <button
-                                onClick={() => restoreVersion(c.hash)}
-                                disabled={restoringHash === c.hash}
-                                className="opacity-0 group-hover:opacity-100 transition px-1.5 py-0.5 rounded"
-                                style={{
-                                  fontSize: 9,
-                                  color: restoringHash === c.hash ? '#A8A29E' : '#0F766E',
-                                  border: '1px solid #D6CFC2',
-                                  background: 'rgba(255,255,255,0.9)',
-                                }}>
-                                {restoringHash === c.hash ? '恢复中…' : '恢复'}
-                              </button>
-                            )}
+                      {gitLog.slice(0, 8).map((c, idx) => {
+                        const stripTime = new Date(c.timestamp).toLocaleTimeString('zh', { hour: '2-digit', minute: '2-digit' })
+                        const versionRef = `<version_reference>\nhash: ${c.hash}\nmessage: ${c.message}\ntime: ${stripTime}\n</version_reference>`
+                        return (
+                          <div key={c.hash} className="flex-shrink-0 rounded-lg px-3 py-2 group relative"
+                            style={{ minWidth: 140, border: '1px solid #CFE0ED', background: '#FFFFFF' }}>
+                            <div className="font-mono" style={{ fontSize: 10, color: '#7A99AE' }}>{c.hash}</div>
+                            <div className="mt-0.5 truncate" style={{ fontSize: 11, color: '#2E4A5E' }}>{c.message}</div>
+                            <div className="font-mono mt-1 flex items-center justify-between" style={{ fontSize: 9.5, color: '#9DB5C7' }}>
+                              <span>{stripTime}</span>
+                              <div className="opacity-0 group-hover:opacity-100 transition flex items-center gap-1">
+                                {idx > 0 && (
+                                  <button
+                                    onClick={() => restoreVersion(c.hash)}
+                                    disabled={restoringHash === c.hash}
+                                    className="px-1.5 py-0.5 rounded"
+                                    style={{
+                                      fontSize: 9,
+                                      color: restoringHash === c.hash ? '#7A99AE' : '#1A7DC4',
+                                      border: '1px solid #BDCFDF',
+                                      background: 'rgba(255,255,255,0.9)',
+                                    }}>
+                                    {restoringHash === c.hash ? '恢复中…' : '恢复'}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => onStageToChat?.(versionRef)}
+                                  className="px-1.5 py-0.5 rounded"
+                                  style={{
+                                    fontSize: 9,
+                                    color: '#4A6478',
+                                    border: '1px solid #BDCFDF',
+                                    background: 'rgba(255,255,255,0.9)',
+                                  }}>
+                                  参考
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -644,11 +659,11 @@ function DragHandle({ onDragStart }) {
       <div className="absolute inset-y-0"
         style={{
           left: 2, width: 1,
-          background: '#E7E0D1',
+          background: '#CFE0ED',
           transition: 'background 0.1s',
         }} />
       <div className="absolute inset-y-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ left: 1, width: 3, background: 'rgba(28,25,23,0.15)' }} />
+        style={{ left: 1, width: 3, background: 'rgba(26,43,60,0.15)' }} />
     </div>
   )
 }
@@ -681,7 +696,6 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         store.fetchSvg()
         store.fetchGitLog()
         showToast(`已恢复到 ${hash.slice(0, 7)}`)
-        send?.(`[系统] 用户已将图表恢复到 git commit ${hash}，请注意 plot.py 内容已变更`)
       } else {
         showToast('恢复失败')
       }
@@ -743,7 +757,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
           : activeExperimentId
             ? <ExperimentPanel />
             : (
-              <div className="flex-1 flex items-center justify-center" style={{ color: '#A8A29E', fontSize: 13 }}>
+              <div className="flex-1 flex items-center justify-center" style={{ color: '#7A99AE', fontSize: 13 }}>
                 选择或新建一个实验
               </div>
             )
@@ -753,7 +767,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
       <DragHandle onDragStart={e => startDrag(e, 'right')} />
 
       {/* Right panel */}
-      <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: rightW, borderLeft: '1px solid #E7E0D1' }}>
+      <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: rightW, borderLeft: '1px solid #CFE0ED' }}>
         {rightTab === 'chat' && (
           <>
             <SectionHeader num="02" title="PlotAgent" right={
@@ -800,7 +814,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
           <>
             <SectionHeader num="06" title="模板" />
             <div className="flex-1 overflow-hidden">
-              <TemplatePanel onSendMessage={(msg) => { send(msg); setRightTab('chat') }} />
+              <TemplatePanel onSendMessage={(msg) => { appendChatDraft(msg); setRightTab('chat') }} />
             </div>
           </>
         )}
@@ -809,62 +823,80 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
             <SectionHeader num="07" title="历史" subtitle={`${gitLog.length} 个版本`} />
             <div className="flex-1 overflow-y-auto py-3">
               {gitLog.length === 0 && (
-                <div className="text-center py-10" style={{ fontSize: 12, color: '#C4BEB7' }}>暂无历史记录</div>
+                <div className="text-center py-10" style={{ fontSize: 12, color: '#9DB5C7' }}>暂无历史记录</div>
               )}
               {gitLog.map((c, idx) => {
                 const isCurrent = idx === 0
                 const isRestoring = restoringHash === c.hash
+                const formattedTime = new Date(c.timestamp).toLocaleString('zh', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                const versionRef = `<version_reference>\nhash: ${c.hash}\nmessage: ${c.message}\ntime: ${formattedTime}\n</version_reference>`
                 return (
-                  <button
+                  <div
                     key={c.hash}
-                    disabled={isCurrent || isRestoring}
-                    onClick={() => !isCurrent && restoreVersion(c.hash)}
-                    className="w-full text-left flex items-start gap-3 px-4 py-2.5 transition group"
+                    className="w-full flex items-start gap-3 px-4 py-2.5 group"
                     style={{
-                      cursor: isCurrent ? 'default' : 'pointer',
-                      background: isCurrent ? 'rgba(28,25,23,0.04)' : 'transparent',
+                      background: isCurrent ? 'rgba(26,43,60,0.04)' : 'transparent',
                       opacity: isRestoring ? 0.5 : 1,
                     }}>
                     {/* Timeline spine */}
                     <div className="flex flex-col items-center flex-shrink-0" style={{ paddingTop: 3 }}>
                       <div style={{
                         width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                        background: isCurrent ? '#1C1917' : '#D6CFC2',
-                        border: `2px solid ${isCurrent ? '#1C1917' : '#D6CFC2'}`,
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }} className={!isCurrent ? 'group-hover:!bg-teal-600 group-hover:!border-teal-600' : ''} />
+                        background: isCurrent ? '#1A2B3C' : '#BDCFDF',
+                        border: `2px solid ${isCurrent ? '#1A2B3C' : '#BDCFDF'}`,
+                      }} />
                       {idx < gitLog.length - 1 && (
-                        <div style={{ width: 1, flex: 1, minHeight: 20, background: '#E7E0D1', margin: '3px 0' }} />
+                        <div style={{ width: 1, flex: 1, minHeight: 20, background: '#CFE0ED', margin: '3px 0' }} />
                       )}
                     </div>
                     {/* Content */}
                     <div className="flex-1 min-w-0 pb-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono" style={{ fontSize: 9.5, color: '#A8A29E' }}>{c.hash}</span>
+                        <span className="font-mono" style={{ fontSize: 9.5, color: '#7A99AE' }}>{c.hash}</span>
                         {isCurrent && (
                           <span style={{
                             fontSize: 9, borderRadius: 3, padding: '1px 5px',
-                            background: '#1C1917', color: '#F5F1EA',
+                            background: '#1A2B3C', color: '#EBF4FA',
                           }}>当前</span>
                         )}
                       </div>
                       <div className="mt-0.5" style={{
-                        fontSize: 12, color: '#1C1917',
+                        fontSize: 12, color: '#1A2B3C',
                         fontWeight: isCurrent ? 500 : 400,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>{c.message}</div>
-                      <div className="font-mono flex items-center justify-between mt-0.5"
-                        style={{ fontSize: 9.5, color: '#A8A29E' }}>
-                        <span>{new Date(c.timestamp).toLocaleString('zh', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                        {!isCurrent && (
-                          <span className="opacity-0 group-hover:opacity-100 transition"
-                            style={{ color: '#0F766E' }}>
-                            {isRestoring ? '恢复中…' : '点击恢复 →'}
-                          </span>
-                        )}
+                      <div className="font-mono mt-0.5" style={{ fontSize: 9.5, color: '#7A99AE' }}>
+                        {formattedTime}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <button
+                          onClick={() => !isCurrent && restoreVersion(c.hash)}
+                          disabled={isCurrent || isRestoring}
+                          className="px-2 py-0.5 rounded transition"
+                          style={{
+                            fontSize: 10,
+                            color: isCurrent ? '#9DB5C7' : '#1A7DC4',
+                            border: '1px solid #BDCFDF',
+                            background: 'rgba(255,255,255,0.9)',
+                            cursor: isCurrent ? 'default' : 'pointer',
+                          }}>
+                          {isRestoring ? '恢复中…' : '恢复'}
+                        </button>
+                        <button
+                          onClick={() => { appendChatDraft(versionRef); setRightTab('chat') }}
+                          className="px-2 py-0.5 rounded transition"
+                          style={{
+                            fontSize: 10,
+                            color: '#4A6478',
+                            border: '1px solid #BDCFDF',
+                            background: 'rgba(255,255,255,0.9)',
+                            cursor: 'pointer',
+                          }}>
+                          参考
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -874,7 +906,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
 
       {/* Activity Rail */}
       <div className="flex flex-col items-center gap-1 py-3 border-l flex-shrink-0"
-        style={{ width: 48, borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.3)' }}>
+        style={{ width: 48, borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.3)' }}>
         {[
           ['chat',     MessageSquare, '对话'],
           ['edit',     Pencil,        '元素编辑'],
@@ -887,11 +919,11 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
             className="w-9 h-9 flex items-center justify-center rounded-md transition relative"
             style={{
               background: rightTab === id ? '#FFFFFF' : 'transparent',
-              color: rightTab === id ? '#1C1917' : '#A8A29E',
+              color: rightTab === id ? '#1A2B3C' : '#7A99AE',
             }}>
             {rightTab === id && (
               <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r"
-                style={{ background: '#1C1917' }} />
+                style={{ background: '#1A2B3C' }} />
             )}
             <Icon size={15} />
           </button>
@@ -925,35 +957,35 @@ export default function App() {
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col relative"
       style={{
-        background: '#F5F1EA',
-        backgroundImage: 'radial-gradient(circle at 20% 10%, rgba(180,83,9,0.04), transparent 40%), radial-gradient(circle at 80% 90%, rgba(15,118,110,0.04), transparent 40%)',
-        color: '#1C1917',
+        background: 'var(--c-bg, #EBF4FA)',
+        backgroundImage: 'radial-gradient(circle at 20% 10%, rgba(22,104,168,0.04), transparent 40%), radial-gradient(circle at 80% 90%, rgba(26,125,196,0.04), transparent 40%)',
+        color: 'var(--c-text, #1A2B3C)',
         fontFamily: 'Geist, -apple-system, sans-serif',
       }}>
 
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b z-20 flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', background: 'rgba(245,241,234,0.85)', backdropFilter: 'blur(8px)' }}>
+        style={{ borderColor: 'var(--c-border, #CFE0ED)', background: 'var(--c-header, rgba(235,244,250,0.85))', backdropFilter: 'blur(8px)' }}>
         <div className="flex items-center gap-5">
           <button onClick={() => setView('dashboard')} className="flex items-center gap-2.5 transition hover:opacity-70">
-            <div className="w-7 h-7 flex items-center justify-center rounded" style={{ background: '#1C1917' }}>
-              <BarChart3 size={15} color="#F5F1EA" strokeWidth={2.2} />
+            <div className="w-7 h-7 flex items-center justify-center rounded" style={{ background: '#1A2B3C' }}>
+              <BarChart3 size={15} color="#EBF4FA" strokeWidth={2.2} />
             </div>
             <span style={{ fontSize: 17, fontFamily: 'Fraunces, serif', fontWeight: 500, fontStyle: 'italic' }}>
               OpenPlotAgent
             </span>
           </button>
           {view === 'workspace' && activeProjectId && (
-            <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 11.5, color: '#78716C' }}>
+            <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 11.5, color: '#4A6478' }}>
               <ChevronRight size={11} />
               <button onClick={() => setView('dashboard')} className="hover:underline transition"
-                style={{ color: '#57534E' }}>
+                style={{ color: '#2E4A5E' }}>
                 Projects
               </button>
               <ChevronRight size={11} />
               <button onClick={() => { setActive(activeProjectId); setView('workspace') }}
                 className="hover:underline transition"
-                style={{ color: '#44403C', fontWeight: activeExperimentId ? 400 : 500 }}>
+                style={{ color: '#1F3547', fontWeight: activeExperimentId ? 400 : 500 }}>
                 {activeProjectId}
               </button>
               {activeExperimentId && (
@@ -962,7 +994,7 @@ export default function App() {
                   <button
                     onClick={() => setActiveTask(null)}
                     className="hover:underline transition"
-                    style={{ color: '#44403C', fontWeight: activeTaskId ? 400 : 500 }}>
+                    style={{ color: '#1F3547', fontWeight: activeTaskId ? 400 : 500 }}>
                     {activeExperimentId}
                   </button>
                 </>
@@ -970,31 +1002,31 @@ export default function App() {
               {activeTaskId && (
                 <>
                   <ChevronRight size={11} />
-                  <span style={{ color: '#1C1917', fontWeight: 500 }}>{activeTaskId}</span>
+                  <span style={{ color: '#1A2B3C', fontWeight: 500 }}>{activeTaskId}</span>
                 </>
               )}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-md p-0.5" style={{ background: '#E7E0D1' }}>
+          <div className="flex items-center rounded-md p-0.5" style={{ background: '#CFE0ED' }}>
             {[['dashboard', LayoutGrid, '项目'], ['workspace', FileText, '工作台']].map(([k, I, l]) => (
               <button key={k} onClick={() => setView(k)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded transition"
                 style={{
                   fontSize: 11.5,
                   background: view === k ? '#FFFFFF' : 'transparent',
-                  color: view === k ? '#1C1917' : '#78716C',
+                  color: view === k ? '#1A2B3C' : '#4A6478',
                   fontWeight: view === k ? 500 : 400,
                 }}>
                 <I size={11} />{l}
               </button>
             ))}
           </div>
-          <div className="w-px h-5 mx-1" style={{ background: '#D6CFC2' }} />
+          <div className="w-px h-5 mx-1" style={{ background: '#BDCFDF' }} />
           <button onClick={() => setShowSettings(true)}
             className="w-7 h-7 flex items-center justify-center rounded-md transition hover:opacity-70"
-            style={{ color: '#78716C' }}>
+            style={{ color: '#4A6478' }}>
             <Settings size={14} />
           </button>
         </div>

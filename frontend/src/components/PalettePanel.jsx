@@ -134,16 +134,16 @@ export function PalettePanel() {
       {currentColors.length > 0 && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#A8A29E' }}>
+            <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#7A99AE' }}>
               当前配色
             </span>
             <button onClick={saveCurrent}
               className="flex items-center gap-1 px-2 py-0.5 rounded"
-              style={{ fontSize: 11, border: '1px solid #D6CFC2', color: '#57534E' }}>
+              style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
               <Plus size={9} />保存
             </button>
           </div>
-          <div className="flex gap-1 p-2 rounded-lg" style={{ background: '#FFFFFF', border: '1px solid #E7E0D1' }}>
+          <div className="flex gap-1 p-2 rounded-lg" style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
             {currentColors.map((c, i) => (
               <span key={i} title={c} style={{ display: 'inline-block', width: 18, height: 18, borderRadius: 4, background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
             ))}
@@ -151,7 +151,7 @@ export function PalettePanel() {
         </div>
       )}
 
-      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#A8A29E', marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#7A99AE', marginBottom: 8 }}>
         预设方案
       </div>
 
@@ -161,23 +161,23 @@ export function PalettePanel() {
             <button onClick={() => apply(p)}
               className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-left transition"
               style={{
-                border: `1px solid ${applied === p.name ? '#0F766E' : '#E7E0D1'}`,
-                background: applied === p.name ? 'rgba(15,118,110,0.05)' : '#FFFFFF',
+                border: `1px solid ${applied === p.name ? '#1A7DC4' : '#CFE0ED'}`,
+                background: applied === p.name ? 'rgba(26,125,196,0.05)' : '#FFFFFF',
               }}>
               <div className="flex gap-0.5 flex-shrink-0">
                 {p.colors.slice(0, 6).map(c => (
                   <span key={c} style={{ display: 'inline-block', width: 13, height: 13, borderRadius: 3, background: c }} />
                 ))}
               </div>
-              <span style={{ fontSize: 12, color: '#44403C', fontFamily: 'Fraunces, serif', fontStyle: 'italic', flex: 1 }}>
+              <span style={{ fontSize: 12, color: '#1F3547', fontFamily: 'Fraunces, serif', fontStyle: 'italic', flex: 1 }}>
                 {p.name}
               </span>
-              {applied === p.name && <Check size={11} style={{ color: '#0F766E', flexShrink: 0 }} />}
+              {applied === p.name && <Check size={11} style={{ color: '#1A7DC4', flexShrink: 0 }} />}
             </button>
             {custom.includes(p) && (
               <button onClick={() => deleteCustom(p.name)}
                 className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
-                style={{ color: '#C4BEB7', border: '1px solid #E7E0D1' }}>
+                style={{ color: '#9DB5C7', border: '1px solid #CFE0ED' }}>
                 <Trash2 size={10} />
               </button>
             )}
@@ -190,15 +190,15 @@ export function PalettePanel() {
           style={{
             fontSize: 11,
             fontFamily: 'JetBrains Mono, monospace',
-            color: notice.ok ? '#0F766E' : '#B45309',
-            background: notice.ok ? 'rgba(15,118,110,0.05)' : 'rgba(180,83,9,0.05)',
+            color: notice.ok ? '#1A7DC4' : '#1668A8',
+            background: notice.ok ? 'rgba(26,125,196,0.05)' : 'rgba(22,104,168,0.05)',
           }}>
           {notice.text}
         </div>
       )}
 
       {!svgContent && (
-        <div style={{ fontSize: 12, color: '#C4BEB7', textAlign: 'center', marginTop: 32 }}>
+        <div style={{ fontSize: 12, color: '#9DB5C7', textAlign: 'center', marginTop: 32 }}>
           生成图表后才能切换配色
         </div>
       )}

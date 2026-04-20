@@ -204,8 +204,8 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
       const isAxis = AXIS_GIDS.includes(gid)
       const stroke =
         isLegend ? '#7C3AED' :
-        isAxis   ? '#0F766E' :
-        '#B45309'
+        isAxis   ? '#1A7DC4' :
+        '#1668A8'
       rect.setAttribute('stroke', stroke)
       rect.setAttribute('stroke-width', isLegend ? '1.5' : '1')
       rect.setAttribute('stroke-dasharray', isLegend ? '5 3' : '3 3')
@@ -249,17 +249,16 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   // Computed once per drag, not via React state, to avoid re-render lag.
   function applyDragMove(e) {
     const drag = dragStateRef.current
-    if (!drag) return
-    const dxPx = e.clientX - drag.originX
-    const dyPx = e.clientY - drag.originY
-    const svg = drag.svgEl
-    const svgWidth = drag.svgRect.width
-    const svgHeight = drag.svgRect.height
-    const viewBox = svg.viewBox?.baseVal
-    const vbW = viewBox?.width || parseFloat(svg.getAttribute('width')) || svgWidth
-    const vbH = viewBox?.height || parseFloat(svg.getAttribute('height')) || svgHeight
-    const tx = drag.initialTx + dxPx * (vbW / svgWidth)
-    const ty = drag.initialTy + dyPx * (vbH / svgHeight)
+    if (!drag || !drag.parentCTMInverse) return
+    // Convert screen positions to the legend's parent local coordinate space.
+    // This handles any parent-group transforms in the matplotlib SVG.
+    const pt = drag.svgEl.createSVGPoint()
+    pt.x = e.clientX; pt.y = e.clientY
+    const currLocal = pt.matrixTransform(drag.parentCTMInverse)
+    pt.x = drag.originX; pt.y = drag.originY
+    const origLocal = pt.matrixTransform(drag.parentCTMInverse)
+    const tx = drag.initialTx + (currLocal.x - origLocal.x)
+    const ty = drag.initialTy + (currLocal.y - origLocal.y)
     drag.currentTx = tx
     drag.currentTy = ty
     drag.legendEl.setAttribute('transform', `translate(${tx}, ${ty})`)
@@ -288,6 +287,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     const initialTx = translateMatch ? parseFloat(translateMatch[1]) : 0
     const initialTy = translateMatch ? parseFloat(translateMatch[2]) : 0
 
+    const parentEl = target.parentElement || svg
+    const parentCTM = parentEl.getScreenCTM()
+    const parentCTMInverse = parentCTM ? parentCTM.inverse() : null
+
     dragStateRef.current = {
       legendEl: target,
       svgEl: svg,
@@ -299,10 +302,13 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
       initialTy,
       currentTx: initialTx,
       currentTy: initialTy,
+      parentCTMInverse,
     }
 
     target.style.cursor = 'grabbing'
     target.style.opacity = '0.85'
+    document.body.style.cursor = 'grabbing'
+    el.style.cursor = 'grabbing'
     removeHoverRect()
 
     // Attach global listeners SYNCHRONOUSLY so drag never loses the cursor,
@@ -328,9 +334,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   }, [showBorders, removeHoverRect, textEdit, axisEdit])
 
   const handleMouseMove = useCallback((e) => {
-    // During drag: handled by global listener; here we only do hover highlights.
     if (dragStateRef.current) return
-
     if (!showBorders) return
     if (textEdit || axisEdit) return
     const el = containerRef.current
@@ -343,6 +347,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     if (target) {
       hoveredRef.current = target
       drawHoverRect(target)
+      const gid = target.getAttribute('id')
+      el.style.cursor = (gid === 'legend' || gid?.startsWith('legend_')) ? 'grab' : 'pointer'
+    } else {
+      el.style.cursor = ''
     }
   }, [showBorders, removeHoverRect, drawHoverRect, textEdit, axisEdit])
 
@@ -358,22 +366,21 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
       globalDragCleanupRef.current = null
     }
 
-    const { legendEl, svgEl, legendBBox, currentTx, currentTy } = drag
+    const { legendEl, svgEl, initialTx, initialTy, currentTx, currentTy } = drag
     legendEl.style.cursor = 'grab'
     legendEl.style.opacity = ''
+    document.body.style.cursor = ''
+    if (containerRef.current) containerRef.current.style.cursor = ''
     dragStateRef.current = null
 
-    const viewBox = svgEl.viewBox?.baseVal
-    const vbW = viewBox?.width || parseFloat(svgEl.getAttribute('width')) || 1
-    const vbH = viewBox?.height || parseFloat(svgEl.getAttribute('height')) || 1
+    // Use getBoundingClientRect for robust figure-normalized coords
+    const legendScreenRect = legendEl.getBoundingClientRect()
+    const svgScreenRect = svgEl.getBoundingClientRect()
+    const figX = (legendScreenRect.left - svgScreenRect.left) / svgScreenRect.width
+    const figY = 1 - (legendScreenRect.bottom - svgScreenRect.top) / svgScreenRect.height
 
-    const newX = legendBBox.x + currentTx
-    const newY = legendBBox.y + currentTy
-    const figX = newX / vbW
-    const figY = 1 - (newY + legendBBox.height) / vbH
-
-    const totalDrag = Math.hypot(currentTx - drag.initialTx, currentTy - drag.initialTy)
-    if (totalDrag < 3) {
+    const totalDrag = Math.hypot(currentTx - initialTx, currentTy - initialTy)
+    if (totalDrag < 2) {
       setDragFeedback(null)
       return
     }
@@ -416,6 +423,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   const handleMouseLeave = useCallback(() => {
     if (dragStateRef.current) return
     removeHoverRect()
+    if (containerRef.current) containerRef.current.style.cursor = ''
   }, [removeHoverRect])
 
   const handleClick = useCallback((e) => {
@@ -621,10 +629,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
 
   if (!svgContent) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ color: '#A8A29E' }}>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ color: '#7A99AE' }}>
         <div style={{ fontSize: 32 }}>🎨</div>
         <div style={{ fontSize: 13 }}>还没有图表</div>
-        <div style={{ fontSize: 11.5, color: '#C4BEB7' }}>在右侧对话框输入需求，agent 会生成 plot.py</div>
+        <div style={{ fontSize: 11.5, color: '#9DB5C7' }}>在右侧对话框输入需求，agent 会生成 plot.py</div>
       </div>
     )
   }
@@ -636,32 +644,32 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     <div className="relative flex-1 flex flex-col">
       {/* Zoom toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b flex-shrink-0"
-        style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.5)' }}>
+        style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.5)' }}>
         <button onClick={zoomOut} title="缩小"
           className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5"
-          style={{ color: '#57534E' }}>
+          style={{ color: '#2E4A5E' }}>
           <Minus size={12} />
         </button>
         <button onClick={zoomReset} title="100%"
           className="min-w-[46px] h-6 px-1.5 flex items-center justify-center rounded hover:bg-black/5"
           style={{
             fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
-            color: fitMode === 'manual' ? '#1C1917' : '#78716C',
+            color: fitMode === 'manual' ? '#1A2B3C' : '#4A6478',
             fontWeight: fitMode === 'manual' ? 500 : 400,
           }}>
           {Math.round(zoom * 100)}%
         </button>
         <button onClick={zoomIn} title="放大"
           className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5"
-          style={{ color: '#57534E' }}>
+          style={{ color: '#2E4A5E' }}>
           <Plus size={12} />
         </button>
-        <div className="w-px h-4 mx-1" style={{ background: '#E7E0D1' }} />
+        <div className="w-px h-4 mx-1" style={{ background: '#CFE0ED' }} />
         <button onClick={() => setFitMode('width')} title="适合宽度"
           className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
           style={{
             fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
-            color: fitMode === 'width' ? '#1C1917' : '#78716C',
+            color: fitMode === 'width' ? '#1A2B3C' : '#4A6478',
             fontWeight: fitMode === 'width' ? 500 : 400,
             background: fitMode === 'width' ? 'rgba(0,0,0,0.04)' : 'transparent',
           }}>
@@ -671,7 +679,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
           className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
           style={{
             fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
-            color: fitMode === 'height' ? '#1C1917' : '#78716C',
+            color: fitMode === 'height' ? '#1A2B3C' : '#4A6478',
             fontWeight: fitMode === 'height' ? 500 : 400,
             background: fitMode === 'height' ? 'rgba(0,0,0,0.04)' : 'transparent',
           }}>
@@ -681,13 +689,13 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
           className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
           style={{
             fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
-            color: fitMode === 'page' ? '#1C1917' : '#78716C',
+            color: fitMode === 'page' ? '#1A2B3C' : '#4A6478',
             fontWeight: fitMode === 'page' ? 500 : 400,
             background: fitMode === 'page' ? 'rgba(0,0,0,0.04)' : 'transparent',
           }}>
           <Maximize2 size={11} />页面
         </button>
-        <span className="ml-auto font-mono" style={{ fontSize: 10, color: '#C4BEB7' }}>
+        <span className="ml-auto font-mono" style={{ fontSize: 10, color: '#9DB5C7' }}>
           ⌘/Ctrl + 滚轮 缩放
         </span>
       </div>
@@ -749,18 +757,18 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                 height: '100%',
                 fontSize: 13,
                 padding: '2px 6px',
-                border: '2px solid #B45309',
+                border: '2px solid #1668A8',
                 borderRadius: 4,
                 outline: 'none',
                 background: 'rgba(255,255,255,0.95)',
-                color: '#1C1917',
+                color: '#1A2B3C',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
               }}
             />
             {textEditSaving && (
               <div
                 className="absolute -top-5 left-0 text-xs"
-                style={{ color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}
+                style={{ color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}
               >
                 保存中…
               </div>
@@ -778,7 +786,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
               width: 180,
               padding: '10px 12px',
               background: '#FFFFFF',
-              border: '1px solid #0F766E',
+              border: '1px solid #1A7DC4',
               zIndex: 20,
             }}
             onClick={(e) => e.stopPropagation()}
@@ -789,7 +797,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: '0.04em',
-                color: '#0F766E',
+                color: '#1A7DC4',
                 marginBottom: 6,
                 textTransform: 'uppercase',
               }}
@@ -812,12 +820,12 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                   width: 60,
                   fontSize: 12,
                   padding: '4px 6px',
-                  border: '1px solid #D6D3D1',
+                  border: '1px solid #BFCEDB',
                   borderRadius: 4,
                   outline: 'none',
                 }}
               />
-              <span style={{ color: '#78716C', fontSize: 12 }}>—</span>
+              <span style={{ color: '#4A6478', fontSize: 12 }}>—</span>
               <input
                 type="number"
                 placeholder="max"
@@ -832,7 +840,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                   width: 60,
                   fontSize: 12,
                   padding: '4px 6px',
-                  border: '1px solid #D6D3D1',
+                  border: '1px solid #BFCEDB',
                   borderRadius: 4,
                   outline: 'none',
                 }}
@@ -845,10 +853,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                 style={{
                   fontSize: 11,
                   padding: '3px 8px',
-                  border: '1px solid #D6D3D1',
+                  border: '1px solid #BFCEDB',
                   borderRadius: 4,
                   background: '#FAFAF9',
-                  color: '#57534E',
+                  color: '#2E4A5E',
                   cursor: 'pointer',
                 }}
               >
@@ -863,7 +871,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                   padding: '3px 10px',
                   border: 'none',
                   borderRadius: 4,
-                  background: '#0F766E',
+                  background: '#1A7DC4',
                   color: '#FFFFFF',
                   cursor: axisEditSaving ? 'wait' : 'pointer',
                   fontWeight: 500,
@@ -872,7 +880,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
                 {axisEditSaving ? '保存中…' : '应用'}
               </button>
             </div>
-            <div style={{ fontSize: 10.5, color: '#A8A29E', marginTop: 6 }}>
+            <div style={{ fontSize: 10.5, color: '#7A99AE', marginTop: 6 }}>
               Enter 应用 / Esc 取消
             </div>
           </div>
@@ -888,15 +896,15 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
             fontSize: 11.5,
             fontFamily: 'JetBrains Mono, monospace',
             background:
-              dragFeedback === 'saved' ? 'rgba(15,118,110,0.1)' :
+              dragFeedback === 'saved' ? 'rgba(26,125,196,0.1)' :
               dragFeedback === 'error' ? 'rgba(220,38,38,0.1)' :
               'rgba(124,58,237,0.1)',
             color:
-              dragFeedback === 'saved' ? '#0F766E' :
+              dragFeedback === 'saved' ? '#1A7DC4' :
               dragFeedback === 'error' ? '#DC2626' :
               '#7C3AED',
             border: `1px solid ${
-              dragFeedback === 'saved' ? 'rgba(15,118,110,0.3)' :
+              dragFeedback === 'saved' ? 'rgba(26,125,196,0.3)' :
               dragFeedback === 'error' ? 'rgba(220,38,38,0.3)' :
               'rgba(124,58,237,0.3)'
             }`,

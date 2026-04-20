@@ -74,7 +74,7 @@ async function callPatchCode(projectId, experimentId, taskId, gid, property, val
 
 const QUICK_COLORS = [
   '#E69F00', '#56B4E9', '#009E73', '#F0E442',
-  '#0072B2', '#D55E00', '#CC79A7', '#1C1917',
+  '#0072B2', '#D55E00', '#CC79A7', '#1A2B3C',
   '#DC2626', '#059669', '#7C3AED', '#EA580C',
 ]
 
@@ -229,10 +229,10 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
   if (!selected) {
     return (
       <div className="flex flex-col h-full items-center justify-center px-4"
-        style={{ color: '#C4BEB7', fontSize: 12, textAlign: 'center' }}>
+        style={{ color: '#9DB5C7', fontSize: 12, textAlign: 'center' }}>
         <div style={{ fontSize: 28, marginBottom: 8 }}>🖱️</div>
         <div>在预览图中点击元素</div>
-        <div style={{ marginTop: 4, color: '#D6CFC2', fontSize: 11 }}>支持标题、轴标签、柱/线条</div>
+        <div style={{ marginTop: 4, color: '#BDCFDF', fontSize: 11 }}>支持标题、轴标签、柱/线条</div>
       </div>
     )
   }
@@ -243,13 +243,13 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Header */}
       <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0"
-        style={{ borderColor: '#E7E0D1' }}>
+        style={{ borderColor: '#CFE0ED' }}>
         <div>
-          <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#A8A29E' }}>ELEMENT</div>
+          <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#7A99AE' }}>ELEMENT</div>
           <div style={{ fontSize: 14, fontFamily: 'Fraunces, serif', fontWeight: 500, fontStyle: 'italic' }}>{gid}</div>
         </div>
         <button onClick={handleClose} className="w-6 h-6 flex items-center justify-center rounded"
-          style={{ color: '#A8A29E', border: '1px solid #E7E0D1' }}>
+          style={{ color: '#7A99AE', border: '1px solid #CFE0ED' }}>
           <X size={12} />
         </button>
       </div>
@@ -259,7 +259,7 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
         {isBar && (
           <div>
             <label className="flex items-center gap-1.5"
-              style={{ fontSize: 11, color: '#78716C', marginBottom: 6 }}>
+              style={{ fontSize: 11, color: '#4A6478', marginBottom: 6 }}>
               <Palette size={11} /> 填充颜色
             </label>
 
@@ -271,7 +271,7 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
                   className="w-5 h-5 rounded-sm border"
                   style={{
                     background: c,
-                    borderColor: color === c ? '#1C1917' : '#D6CFC2',
+                    borderColor: color === c ? '#1A2B3C' : '#BDCFDF',
                     borderWidth: color === c ? 2 : 1,
                   }} />
               ))}
@@ -281,11 +281,11 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
             <div className="flex items-center gap-2 mb-3">
               <input type="color" value={color}
                 onChange={e => applyColorPreview(e.target.value)}
-                style={{ width: 36, height: 32, borderRadius: 6, border: '1px solid #D6CFC2', padding: 2, cursor: 'pointer' }} />
+                style={{ width: 36, height: 32, borderRadius: 6, border: '1px solid #BDCFDF', padding: 2, cursor: 'pointer' }} />
               <input value={color}
                 onChange={e => applyColorPreview(e.target.value)}
                 className="flex-1 rounded px-2 py-1.5 outline-none"
-                style={{ fontSize: 12, border: '1px solid #D6CFC2', fontFamily: 'JetBrains Mono, monospace' }} />
+                style={{ fontSize: 12, border: '1px solid #BDCFDF', fontFamily: 'JetBrains Mono, monospace' }} />
             </div>
 
             {/* Save color button — uses CodePatcher, no LLM */}
@@ -295,9 +295,9 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md"
               style={{
                 fontSize: 11.5,
-                border: '1px solid #D6CFC2',
-                color: saving ? '#A8A29E' : (color !== origColor ? '#1C1917' : '#A8A29E'),
-                background: color !== origColor ? 'rgba(15,118,110,0.06)' : 'transparent',
+                border: '1px solid #BDCFDF',
+                color: saving ? '#7A99AE' : (color !== origColor ? '#1A2B3C' : '#7A99AE'),
+                background: color !== origColor ? 'rgba(26,125,196,0.06)' : 'transparent',
               }}>
               {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={10} />}
               {saving ? '保存中…' : '保存到 plot.py'}
@@ -307,10 +307,10 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
             {strokeWidth !== null && (
               <>
                 <label className="flex items-center gap-1.5"
-                  style={{ fontSize: 11, color: '#78716C', marginBottom: 4, marginTop: 8 }}>
+                  style={{ fontSize: 11, color: '#4A6478', marginBottom: 4, marginTop: 8 }}>
                   线条宽度
                   {strokeWidth !== origStrokeWidth && (
-                    <span style={{ fontSize: 9, color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+                    <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
                   )}
                 </label>
                 <input type="range" min="0.5" max="8" step="0.5"
@@ -323,10 +323,10 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
                   style={{ accentColor: '#7C3AED' }}
                   title="松开鼠标自动保存到 plot.py" />
                 <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>
+                  <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
                     {strokeWidth}px
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#C4BEB7' }}>
+                  <span style={{ fontSize: 9.5, color: '#9DB5C7' }}>
                     松开自动保存
                   </span>
                 </div>
@@ -339,14 +339,14 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
         {isText && (
           <div>
             <label className="flex items-center gap-1.5"
-              style={{ fontSize: 11, color: '#78716C', marginBottom: 6 }}>
+              style={{ fontSize: 11, color: '#4A6478', marginBottom: 6 }}>
               <Type size={11} /> 文字内容
             </label>
             <input value={text} onChange={e => setText(e.target.value)}
               onBlur={applyTextPreview}
               onKeyDown={e => { if (e.key === 'Enter') applyTextPreview() }}
               className="w-full rounded px-2 py-1.5 outline-none mb-2"
-              style={{ fontSize: 12.5, border: '1px solid #D6CFC2' }} />
+              style={{ fontSize: 12.5, border: '1px solid #BDCFDF' }} />
 
             <button
               onClick={() => saveViaPatcher('text', text)}
@@ -354,9 +354,9 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md mb-3"
               style={{
                 fontSize: 11.5,
-                border: '1px solid #D6CFC2',
-                color: saving ? '#A8A29E' : (text !== origText ? '#1C1917' : '#A8A29E'),
-                background: text !== origText ? 'rgba(15,118,110,0.06)' : 'transparent',
+                border: '1px solid #BDCFDF',
+                color: saving ? '#7A99AE' : (text !== origText ? '#1A2B3C' : '#7A99AE'),
+                background: text !== origText ? 'rgba(26,125,196,0.06)' : 'transparent',
               }}>
               {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={10} />}
               {saving ? '保存中…' : '保存到 plot.py'}
@@ -366,10 +366,10 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
             {fontSize !== null && (
               <>
                 <label className="flex items-center gap-1.5"
-                  style={{ fontSize: 11, color: '#78716C', marginBottom: 4 }}>
+                  style={{ fontSize: 11, color: '#4A6478', marginBottom: 4 }}>
                   字号
                   {fontSize !== origFontSize && (
-                    <span style={{ fontSize: 9, color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+                    <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
                   )}
                 </label>
                 <input type="range" min="6" max="32" step="0.5"
@@ -382,10 +382,10 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
                   style={{ accentColor: '#7C3AED' }}
                   title="松开鼠标自动保存到 plot.py" />
                 <div className="flex items-center justify-between">
-                  <span style={{ fontSize: 10, color: '#A8A29E', fontFamily: 'JetBrains Mono, monospace' }}>
+                  <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
                     {fontSize}pt
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#C4BEB7' }}>
+                  <span style={{ fontSize: 9.5, color: '#9DB5C7' }}>
                     松开自动保存
                   </span>
                 </div>
@@ -400,9 +400,9 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
             style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)' }}>
             <div className="flex items-center gap-2 mb-1">
               <Move size={13} style={{ color: '#7C3AED' }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: '#1C1917' }}>图例可直接拖拽</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#1A2B3C' }}>图例可直接拖拽</span>
             </div>
-            <div style={{ fontSize: 11, color: '#57534E', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: '#2E4A5E', lineHeight: 1.5 }}>
               在预览图中按住图例并拖动到新位置，松开即自动保存到 plot.py。
               如需用文字说明（如"放到图外右上"），可用下方对话框发给 Agent。
             </div>
@@ -410,8 +410,8 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
         )}
 
         {/* Context suggestion — send selected element info to agent */}
-        <div className="pt-2 border-t" style={{ borderColor: '#E7E0D1' }}>
-          <label style={{ fontSize: 11, color: '#78716C', display: 'block', marginBottom: 6 }}>
+        <div className="pt-2 border-t" style={{ borderColor: '#CFE0ED' }}>
+          <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 6 }}>
             复杂修改？让 Agent 帮忙
           </label>
           <AgentPromptBox
@@ -425,13 +425,13 @@ export function ElementEditor({ selected, onClose, onSendMessage }) {
         {/* Status */}
         <div style={{ fontSize: 11, lineHeight: 1.5 }}>
           {saveStatus === 'success' && (
-            <span style={{ color: '#0F766E' }}>✓ {saveMessage}</span>
+            <span style={{ color: '#1A7DC4' }}>✓ {saveMessage}</span>
           )}
           {saveStatus === 'error' && (
             <span style={{ color: '#DC2626' }}>✗ {saveMessage}</span>
           )}
           {!saveStatus && (
-            <span style={{ color: '#C4BEB7' }}>
+            <span style={{ color: '#9DB5C7' }}>
               滑块调整松开自动保存；颜色/文字点"保存"即写回 plot.py（均不经过 Agent）。
             </span>
           )}
@@ -466,14 +466,14 @@ function AgentPromptBox({ gid, color, text, onSend }) {
         onKeyDown={e => { if (e.key === 'Enter') submit() }}
         placeholder={`例如：加误差线、改成渐变色…`}
         className="flex-1 rounded px-2 py-1.5 outline-none"
-        style={{ fontSize: 11.5, border: '1px solid #D6CFC2' }}
+        style={{ fontSize: 11.5, border: '1px solid #BDCFDF' }}
       />
       <button onClick={submit} disabled={!prompt.trim()}
         className="px-2 py-1.5 rounded"
         style={{
           fontSize: 11,
-          background: prompt.trim() ? '#1C1917' : '#E7E0D1',
-          color: prompt.trim() ? '#F5F1EA' : '#A8A29E',
+          background: prompt.trim() ? '#1A2B3C' : '#CFE0ED',
+          color: prompt.trim() ? '#EBF4FA' : '#7A99AE',
         }}>
         <Send size={11} />
       </button>
