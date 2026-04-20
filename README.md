@@ -46,15 +46,20 @@ OpenPlotAgent 是一款面向科研人员（研究生、博士后、PI）的 **A
 OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处理，人负责审美判断与精细调整，两者无缝衔接。
 
 - 对话式绘图：用自然语言描述需求，Agent 自动完成数据探索、代码生成、图表渲染
-- 可视化接管：点击 SVG 元素直接修改颜色、文字、线宽等属性，无需改代码
-- 一键切换配色方案，支持自定义调色板保存
-- 数据表格可视化查看与编辑，支持直接粘贴 Excel 数据
+- 可视化接管：点击任意 SVG 元素直接修改颜色、字号、文字、线宽；双击标题/坐标轴标签在位编辑；拖拽图例到新位置；双击坐标轴快速设置 xlim/ylim
+- 一键切换配色方案（后端 `/palette` 直接改写 `plot.py`，无需 LLM），支持自定义调色板保存
+- Excel 风格数据表格：Shift+点击和拖拽选择区域、Ctrl+A/C/V/X、粘贴自动扩展维度、双击/Enter/F2 编辑
+- 代码编辑器：CodeMirror 6 + Python 语法高亮、行号、括号匹配、Ctrl+S 保存
+- 选中数据/代码片段"添加到对话框"（非直接发送），附带位置标注后由用户决定何时发送
+- 三级记忆面板（全局 / 项目 / 实验 / 任务），可在 UI 中直接编辑 `.md` 记忆文件
+- 8 种学术图表模板（柱状/折线/热力/箱线/散点/小提琴/堆叠/环形），一键生成 prompt
 - Agent 感知人工编辑：手工改动会自动通知 Agent，保持上下文同步
 
 ### 论文可用的 PDF 导出
 
 - 直接导出符合期刊投稿规范的 PDF（matplotlib PGF 后端）
 - SVG 矢量格式，无限缩放不失真
+- 预览区内置缩放工具栏：放大 / 缩小 / 100% / 适合宽度 / 适合高度 / 适合页面，Ctrl/⌘+滚轮缩放，大图自动出现滚动条
 - 支持 LaTeX 数学公式渲染
 - 默认 Okabe-Ito 色盲友好配色方案
 - 可配置期刊规范尺寸（Nature、Science、IEEE 等）
@@ -110,6 +115,7 @@ OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处
 | 框架 | React 19.2、Vite 8.0 |
 | 状态管理 | Zustand 5.0 |
 | 样式 | Tailwind CSS 4.2 |
+| 代码编辑器 | CodeMirror 6（`@codemirror/lang-python`） |
 | 图标 | Lucide React 1.8 |
 | 字体 | Fraunces、Geist、JetBrains Mono、Cormorant Garamond |
 
@@ -134,7 +140,18 @@ open-plot-agent/
 ├── frontend/                   # React + Vite 前端
 │   ├── src/
 │   │   ├── App.jsx             # 主界面（Dashboard + Workspace）
-│   │   ├── components/         # 7 个核心 UI 组件
+│   │   ├── components/         # 核心 UI 组件
+│   │   │   ├── ChatPanel.jsx       # 对话面板（流式 + think 折叠 + 工具调用）
+│   │   │   ├── SvgPreview.jsx      # SVG 预览 + 缩放 + 拖拽编辑
+│   │   │   ├── ElementEditor.jsx   # 元素属性编辑器（颜色/字号/文字）
+│   │   │   ├── PalettePanel.jsx    # 配色方案面板（直接调用 /palette）
+│   │   │   ├── DataPanel.jsx       # 原始数据 + Processed + Script 标签页
+│   │   │   ├── DataGrid.jsx        # Excel 风格表格编辑器
+│   │   │   ├── CodeEditor.jsx      # CodeMirror 6 Python 编辑器
+│   │   │   ├── MemoryPanel.jsx     # 三级记忆编辑面板
+│   │   │   ├── TemplatePanel.jsx   # 学术图表模板库
+│   │   │   ├── ExperimentPanel.jsx # 实验视图
+│   │   │   └── SettingsModal.jsx   # 模型设置弹窗
 │   │   ├── hooks/
 │   │   │   └── useAgentChat.js # WebSocket 通信 Hook
 │   │   └── store/
@@ -291,7 +308,9 @@ OpenPlotAgent 将科研绘图拆解为四步标准流程：
 | `POST` | `/api/projects/{pid}/experiments/{eid}/tasks` | 创建任务 |
 | `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chart/svg` | 获取当前 SVG |
 | `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/render` | 重新渲染图表 |
+| `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/palette` | 直接改写 `plot.py` 的配色（无需 LLM） |
 | `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chart/export-pdf` | 导出 PDF |
+| `GET`/`PUT` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/files/{path}` | 读写任意任务文件（含 `TASK.md`、`chart/plot.py`） |
 
 #### Git 操作
 | 方法 | 路径 | 说明 |

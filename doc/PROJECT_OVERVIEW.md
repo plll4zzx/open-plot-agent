@@ -1,6 +1,6 @@
 # OpenPlotAgent · 项目概览
 
-> 最后更新：2026-04-19
+> 最后更新：2026-04-20
 
 ---
 
@@ -206,12 +206,15 @@ open-plot-agent/
 - WorkspaceView：三列布局（Sidebar + Main + Right Panel），面板宽度可拖拽调节
 - Sidebar：三级树形导航（Project → Experiment → Task），点击切换，hover 显示新建按钮
 - TaskMainArea：三个标签页（Processed / Script / 预览），CSS-hidden 保持组件状态不丢失
-- Processed 标签页：粘贴表格（Excel/Numbers/TSV/CSV），可编辑单元格，转置，保存到后端，切换 task 自动加载已有数据
-- Script 标签页：显示 agent 生成的 plot.py，▶ 运行按钮，agent 生成新图后自动刷新
-- 预览标签页：SVG 渲染，semantic gid hover 高亮（虚线框），下载 PDF（可自定义文件名）
-- ChatPanel：流式对话，think 标签折叠，工具调用展开（input/output），Ollama/Anthropic 切换，可调大小的输入框，⌘↵ 发送，停止按钮
-- ElementEditor：点击 SVG 元素打开，柱/线颜色即时生效（直接操作 DOM），"保存到 plot.py" 发送 agent 消息
-- PalettePanel：5 种预设配色方案，直接操作 SVG 无需 agent，支持保存/删除自定义方案
+- Processed 标签页：`DataGrid.jsx` Excel 风格表格 — Shift+点击/拖拽选区、Ctrl+A/C/V/X、粘贴自动扩展维度、双击/Enter/F2 编辑、Delete 清空，支持粘贴 Excel/Numbers/TSV/CSV，保存后切换 task 自动恢复
+- Script 标签页：CodeMirror 6 Python 编辑器（语法高亮、行号、括号匹配、Ctrl+S 保存），▶ 运行按钮，agent 生成新图后自动刷新
+- 预览标签页：SVG 渲染 + 缩放工具栏（放大/缩小/100%/适合宽度/适合高度/适合页面），Ctrl/⌘+滚轮缩放，大图出现滚动条；hover 虚线框（图例紫色、坐标轴青绿色、文字琥珀色）；下载 PDF 可自定义文件名
+- ChatPanel：流式对话，think 标签折叠，工具调用展开（input/output），Ollama/Anthropic 切换，自动增高的输入框，⌘↵ 发送，停止按钮；共享草稿状态支持从其他组件"添加到对话框"（暂存不直接发送）
+- ElementEditor：点击 SVG 元素打开，柱/线颜色即时生效（直接操作 DOM），字号滑块 + 数值输入，描边颜色独立控件，多 tspan 文字预填 + 多行编辑，"保存到 plot.py" 发送 agent 消息
+- SvgPreview 直接编辑：双击 title/xlabel/ylabel/annotation 在位编辑，双击坐标轴弹出 xlim/ylim 面板，拖拽 legend 计算 figure 坐标落盘（需后端 `/patch-code` 端点）
+- PalettePanel：5 种预设配色方案，调用后端 `/palette` 端点直接改写 `plot.py` 再重渲染（无需 LLM），支持保存/删除自定义方案
+- MemoryPanel：三级记忆编辑面板（GLOBAL/PROJECT/EXPERIMENT/TASK.md），通过 `/files/{path}` 读写
+- TemplatePanel：8 种学术图表模板（分组柱/折线/热力/箱线/散点/小提琴/堆叠柱/环形），点击一键注入 prompt 并触发生成
 - SettingsModal：Ollama 配置 + 连接测试 + 模型列表，Anthropic API key + 模型选择，max_tool_rounds 滑块
 - 实验面板（ExperimentPanel）：点击 experiment 时显示简要信息
 - New Experiment / New Task Modal：支持从已有 experiment/task 复制
@@ -223,19 +226,29 @@ open-plot-agent/
 
 | 问题 | 状态 | 说明 |
 |------|------|------|
-| SVG 文字直接编辑 | 部分 | 颜色已支持直接改；文字内容需通过 agent（matplotlib SVG 的 tspan 结构较复杂） |
+| SVG 文字直接编辑 | ✅ 基础版 | 双击 title/xlabel/ylabel/annotation 在位编辑；多 tspan 预填；通过 `/patch-code` 端点写回 `plot.py`（端点待后端实现） |
+| SVG 元素拖拽 | ✅ 图例 | 拖拽 `legend` 计算 figure 坐标并持久化；其他元素（text anchor、arrow）未支持 |
+| 坐标轴范围编辑 | ✅ | 双击 xaxis/yaxis 弹出 min/max 输入面板 |
+| Git 版本回滚 | ✅ | 时间轴 commit 支持一键恢复（`/git/restore` 端点），History 面板展示 commit log；**两版并排 diff 对比未实现** |
+| 一键配色方案 | ✅ | 后端 `/palette` 端点直接改写 `plot.py` 的 hex 字面量并重渲染（无需 LLM） |
+| 脚本代码编辑器 | ✅ | CodeMirror 6 + Python 语法高亮、行号、Ctrl+S 保存 |
+| Excel 风格表格 | ✅ | `DataGrid.jsx` 支持区域选择、快捷键、粘贴扩展维度 |
+| 预览缩放/滚动 | ✅ | 缩放工具栏 + 适合宽度/高度/页面 + Ctrl/⌘+滚轮 |
+| 学术图表模板 | ✅ MVP | `TemplatePanel` 内置 8 种；扩充至 20+ 带骨架数据的模板待做 |
+| 记忆文件 UI 编辑 | ✅ | `MemoryPanel` 读写 GLOBAL/PROJECT/EXPERIMENT/TASK.md，Agent 读写工具未开发 |
 | Pipeline 标签页 | 降级 | 原设计应显示 raw→processed 处理脚本，现已改为 Script（显示 plot.py）；独立 pipeline 功能待实现 |
 | 实时数据 Ingest API | 未实现 | 需求文档中的 POST ingest 端点尚未开发 |
-| 三级记忆系统 | 未实现 | GLOBAL.md / PROJECT.md / TASK.md 目录已创建，但 agent 尚未有 memory_read/write 工具 |
+| 三级记忆 Agent 工具 | 未实现 | UI 编辑已支持，但 agent 侧的 `memory_read/write/search` 工具未开发 |
 | 上下文压缩 | 未实现 | 长对话后 token 超限无优雅处理，仅依赖 LLM 自身的截断 |
-| Git 版本对比 / 回滚 | 未实现 | History 面板仅展示 commit log，无法对比或恢复 |
-| SVG 元素拖拽 | 未实现 | 需求文档中的拖图例、调整图例位置等功能未开发 |
+| 视觉反馈循环 | 未实现 | MatPlotAgent / PlotGen 的自动视觉验证未接入 |
 | LaTeX 公式编辑器 | 未实现 | 双击文字元素弹出 LaTeX 编辑器尚未开发 |
 | 图表尺寸拖拽 | 未实现 | 拖角调整 figsize 未开发 |
 | "在 VSCode 打开" | 未实现 | code <path> 快捷出口未开发 |
 | 项目导出打包 | 未实现 | zip 打包、清理 venv 后打包、全部 PDF 合并导出未开发 |
 | 跨项目模板 | 未实现 | 创建项目时继承另一项目 _shared/ 样式的功能未开发 |
 | API key 加密存储 | 未实现 | 当前直接存 config.toml 明文，macOS Keychain 集成未开发 |
+| `patch-code` 后端端点 | **缺失** | 前端 SvgPreview 已依赖，但 `backend/main.py` 尚未实现；图例拖拽/坐标轴/文字编辑当前无法持久化 |
+| 任务切换自动 fetchSvg | **缺失** | 点击侧边栏 task 时 `setActive` 不会触发一次 `/chart/svg` 拉取；需手动点"▶ 运行"或等待 agent 完成 |
 
 ---
 
@@ -272,23 +285,29 @@ open-plot-agent/
 
 ### 技术层面
 
-1. **SVG 文字直接编辑**：matplotlib 输出的 `<text>` 元素有时使用 `<tspan>` 嵌套，有时文字内容不在 textContent 里（尤其是带 LaTeX 公式的情况）。目前文字修改走 agent，体验不够流畅。**方向**：在 agent 生成 plot.py 时统一避免 PGF/LaTeX 字体，确保 SVG 输出是标准 `<text>` 元素，使前端可直接 mutate textContent。
+1. **后端 `/patch-code` 端点缺失**：前端 `SvgPreview.jsx` 已实现双击编辑文字 / 拖拽图例 / 双击坐标轴这些交互，但它们都调用 `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/patch-code` 将结果写回 `plot.py`。该端点在 `backend/main.py` 中尚未实现，因此这些交互当前在 DOM 上即时生效，但**不会持久化到代码**。优先级最高。
 
-2. **超长对话上下文**：当前无上下文压缩机制，对话越来越长后 LLM 性能下降或直接报错。**方向**：实现自动对话摘要，在 token 超过阈值时压缩旧对话写入 TASK.md。
+2. **任务选中不自动加载 SVG**：从侧边栏点击 task 时，`setActive` 仅设置 store 状态，没有触发 `/chart/svg` 拉取。用户必须先点"▶ 运行"或等 agent 回合完成，预览区才会出现图表。需要在 `setActive` 或 `TaskMainArea` 挂载时补一次初始 fetchSvg。
 
-3. **Agent 工具效率**：Ollama 本地模型（如 qwen）有时会选错路径、多余的工具调用轮次，导致超出 max_tool_rounds。**方向**：优化 system prompt，提供更多示例；对常见错误提供快速恢复路径。
+3. **超长对话上下文**：当前无上下文压缩机制，对话越来越长后 LLM 性能下降或直接报错。**方向**：实现自动对话摘要，在 token 超过阈值时压缩旧对话写入 TASK.md。
 
-4. **Pipeline 标签页**：原本设计用于展示 raw→processed 的数据处理脚本，现已降级为 Script（显示 plot.py）。raw 数据展示和 pipeline 编写功能还需独立实现。
+4. **视觉反馈循环**：MatPlotAgent / PlotGen 所示范的"Agent 生成 → 自动看图 → 反馈修复"闭环在我们这里尚未接入。这是 AI 绘图质量的上限。
+
+5. **Agent 工具效率**：Ollama 本地模型（如 qwen）有时会选错路径、多余的工具调用轮次，导致超出 max_tool_rounds。**方向**：优化 system prompt，提供更多示例；对常见错误提供快速恢复路径。
+
+6. **Pipeline 标签页**：原本设计用于展示 raw→processed 的数据处理脚本，现已降级为 Script（显示 plot.py）。raw 数据展示和 pipeline 编写功能还需独立实现。
 
 ### 产品层面
 
-5. **Ingest API**：实验过程中实时推数据这个场景尚未实现，是区分本工具与普通画图工具的核心功能之一。
+7. **Ingest API**：实验过程中实时推数据这个场景尚未实现，是区分本工具与普通画图工具的核心功能之一。
 
-6. **版本对比与回滚**：git 基础设施已就绪，但 UI 层面只展示了 commit log，无法做两版图的并排对比，也无法一键恢复某个版本。这是 Overleaf 体验中用户最期待的功能。
+8. **Git 两版对比（Diff 视图）**：`/git/restore` 一键恢复已完成，但前端 UI 层面仍只展示了 commit log，无法做两版图的并排 diff 对比。这是 Overleaf 体验中用户最期待的功能之一。
 
-7. **记忆系统**：TASK.md / PROJECT.md 目录已创建，但 agent 没有 memory_read/write 工具，无法自动记住用户偏好或历史决策。每次新 task 都需要重新告知。
+9. **Agent 记忆工具**：`MemoryPanel` 让用户在 UI 中编辑 GLOBAL/PROJECT/EXPERIMENT/TASK.md，但 agent 没有 `memory_read/write/search` 工具，无法自动积累用户偏好与历史决策。每次新 task 仍需重新告知。
 
-8. **直接操作图表**：当前只有颜色编辑支持直接操作，拖拽图例位置、双击改坐标轴范围、LaTeX 公式编辑等更高级的直接操作尚未实现。
+10. **LaTeX 公式编辑**：双击含 LaTeX 的文字节点时，当前走普通文本编辑；未来需要专门的 LaTeX 输入面板（包含符号选择器与实时预览）。
+
+11. **模板市场扩充**：当前 8 种内置模板只含 prompt，未含 `plot.py` 骨架与示例数据。扩充至 20+ 模板（生存曲线、火山图、Manhattan plot 等）并支持用户保存自定义模板。
 
 ---
 

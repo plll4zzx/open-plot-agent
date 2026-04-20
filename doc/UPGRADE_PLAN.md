@@ -1,7 +1,7 @@
 # OpenPlotAgent 升级方案
 
 > 基于 LIDA / Data Formulator / MatPlotAgent / PlotGen / SVG-Edit 的设计经验
-> 制定日期：2026-04-19
+> 制定日期：2026-04-19 ｜ 最近更新：2026-04-20
 
 ---
 
@@ -14,7 +14,7 @@
 | 数据摘要/探索 | ✅ Summarizer | ✅ DuckDB+SQL | ❌ | ❌ | ❌ | 🔨 inspect_data |
 | AI 代码生成 | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
 | 视觉反馈验证 | ❌ | ❌ | ✅ 多模态 | ✅ 三路反馈 | ❌ | ❌ **待加** |
-| 交互式图形编辑 | ❌ | ✅ UI拖拽 | ❌ | ❌ | ✅ 完整编辑器 | 🔨 部分 |
+| 交互式图形编辑 | ❌ | ✅ UI拖拽 | ❌ | ❌ | ✅ 完整编辑器 | ✅ 颜色/字号/文字/图例/坐标轴 |
 | 版本控制/回溯 | ❌ | ✅ Data Threads | ❌ | ❌ | ❌ | ✅ git |
 | 学术图表专用 | ❌ 通用 | ❌ 通用 | ✅ | ✅ | ❌ | ✅ |
 | 本地运行 | ❌ 需API | ✅ | ❌ 需API | ❌ 需API | ✅ | ✅ |
@@ -133,22 +133,22 @@ class ChartValidator:
 
 ### Phase 3 · 交互编辑增强（3-4 周）
 
-#### 3.1 直接编辑增强（借鉴 SVG-Edit + Data Formulator）
+#### 3.1 直接编辑增强（借鉴 SVG-Edit + Data Formulator）✅ 已完成
 
-**当前**：只有颜色编辑是直接操作 DOM。
-**目标**：更多属性可以直接编辑，不需要走 agent。
+**当前**：预览区已支持一系列无需 agent 参与的直接编辑。
+**进展**：前端 `SvgPreview.jsx` 通过事件委托实现 hover/drag/dblclick，落盘走 `patch-code` 后端直接改写 `plot.py`。
 
-优先实现：
-1. **文字双击编辑** — 双击 SVG text 元素直接改内容，保存时更新 plot.py
-2. **拖拽图例位置** — 拖动 legend 组元素，计算 matplotlib 坐标，写回 plot.py
-3. **坐标轴范围** — 双击坐标轴弹出输入框，设置 xlim/ylim
-4. **字号调节** — 滑块调节选中元素的 font-size
+- [x] **文字双击编辑** — 双击 `title/xlabel/ylabel/annotation_*` 在位编辑，失焦/Enter 保存
+- [x] **拖拽图例位置** — 鼠标拖动 `legend` 元素，自动转换为 figure 坐标并持久化
+- [x] **坐标轴范围** — 双击 `xaxis/yaxis` 弹出 min/max 输入面板，保存为 xlim/ylim
+- [x] **字号调节** — `ElementEditor` 提供滑块 + 数值输入双控件
+- [x] **描边颜色** — 线条 `stroke` 与填充 `fill` 分开编辑
+- [x] **多 tspan 文字预填与多行编辑** — 匹配 matplotlib 的 `<tspan>` 嵌套结构
+- [x] **沙盒注入 `svg.fonttype='none'`** — 确保 matplotlib 输出标准 `<text>` 而非路径化文本，使浏览器可直接 mutate
 
 **关键设计（从 SVG-Edit 学到的）**：
-- 所有直接编辑先作用于 DOM（即时反馈）
-- 同时记录到 pending_edits（已有机制）
-- 下次 agent turn 时统一同步到 plot.py
-- 或者提供"一键同步"按钮，批量将 DOM 编辑写回代码
+- 直接编辑先作用于 DOM（即时反馈），后台异步改写 `plot.py` 并返回新 SVG
+- 颜色编辑仍保留"全量保存到 plot.py"按钮，批量同步
 
 #### 3.2 混合 UI+NL 模式（借鉴 Data Formulator）
 
@@ -213,19 +213,24 @@ Data Formulator v0.2 用 DuckDB 处理大数据。我们可以：
 
 ### Phase 5 · 高级功能（6-8 周）
 
-#### 5.1 记忆系统
+#### 5.1 记忆系统（🔨 UI 完成，Agent 工具待开发）
 
 ```
 层级：
-  GLOBAL.md   — 跨项目偏好（"我的论文图统一用 Okabe-Ito 配色"）
-  PROJECT.md  — 项目级约束（"Nature 要求单栏图宽 89mm，双栏 183mm"）
-  TASK.md     — 任务级历史（"reviewer 说要加 p-value 标注"）
-
-Agent 工具：
-  memory_read(scope, query?)  — 读取指定层级的记忆
-  memory_write(scope, content) — 更新记忆
-  memory_search(query)        — 跨层级搜索相关记忆
+  GLOBAL.md       — 跨项目偏好（"我的论文图统一用 Okabe-Ito 配色"）
+  PROJECT.md      — 项目级约束（"Nature 要求单栏图宽 89mm，双栏 183mm"）
+  EXPERIMENT.md   — 实验级背景（数据来源、采集说明）
+  TASK.md         — 任务级历史（"reviewer 说要加 p-value 标注"）
 ```
+
+**已完成**：
+- [x] 前端 `MemoryPanel.jsx` 四层记忆编辑器（全局 / 项目 / 实验 / 任务），通过 `/files/{path}` 读写
+- [x] 侧边栏切换不同层级
+
+**待开发（Agent 工具）**：
+- [ ] `memory_read(scope, query?)`  — 读取指定层级的记忆
+- [ ] `memory_write(scope, content)` — 更新记忆
+- [ ] `memory_search(query)`        — 跨层级搜索相关记忆
 
 #### 5.2 多 Agent 协作（借鉴 PlotGen）
 
@@ -248,32 +253,46 @@ Validator Agent → 检查数值 + 标签 + 视觉
 对于 Ollama 本地模型，可以用同一个模型扮演不同角色（通过不同 system prompt）。
 对于 Anthropic API，可以用不同模型（planning 用 Haiku 省钱，coding 用 Sonnet）。
 
-#### 5.3 模板市场
+#### 5.3 模板市场（🔨 MVP 已完成）
 
-学术图表有很多固定模式（生存曲线、火山图、热力图、PCA 散点图等），我们可以：
-- 内置 20+ 学术图表模板
-- 每个模板包含 plot.py 骨架 + 示例数据 + 缩略图
-- 用户选择模板后，agent 基于模板修改以适配用户数据
-- 支持用户保存自己的模板
+学术图表有很多固定模式（生存曲线、火山图、热力图、PCA 散点图等）。
+
+**已完成**：
+- [x] 右侧 `TemplatePanel.jsx` 内置 8 种常见模板：分组柱状图、折线图、热力图、箱线图、散点图、小提琴图、堆叠柱状图、环形图
+- [x] 每个模板带预设 prompt 与配色偏好，一键注入 chat 并触发生成
+- [x] 每个模板含中英文名、图标、标签（对比/趋势/分布/相关等）
+
+**待开发**：
+- [ ] 扩充到 20+ 模板（生存曲线、火山图、PCA、Manhattan plot 等）
+- [ ] 每个模板附带 `plot.py` 骨架与示例数据（而非纯 prompt）
+- [ ] 用户自定义模板保存 / 收藏
 
 ---
 
 ## 三、实现优先级矩阵
 
-| 功能 | 影响 | 难度 | 优先级 |
-|------|------|------|--------|
-| Ollama max_tokens 修复 | 🔴 高 | 🟢 低 | **P0 已完成** |
-| 上下文压缩 | 🔴 高 | 🟡 中 | **P1** |
-| 数据摘要工具 | 🟡 中 | 🟢 低 | **P1** |
-| 视觉反馈（基础版） | 🔴 高 | 🟡 中 | **P1** |
-| 文字双击编辑 | 🟡 中 | 🟡 中 | **P2** |
-| 拖拽图例 | 🟡 中 | 🔴 高 | **P3** |
-| Data Threads 分支 | 🟡 中 | 🟡 中 | **P2** |
-| 图表推荐 | 🟡 中 | 🟢 低 | **P2** |
-| 记忆系统 | 🟡 中 | 🟡 中 | **P2** |
-| DuckDB 大数据 | 🟢 低 | 🟡 中 | **P3** |
-| 多 Agent 协作 | 🟡 中 | 🔴 高 | **P3** |
-| 模板市场 | 🟡 中 | 🟡 中 | **P3** |
+| 功能 | 影响 | 难度 | 优先级 | 进展 |
+|------|------|------|--------|------|
+| Ollama max_tokens 修复 | 🔴 高 | 🟢 低 | P0 | ✅ 已完成 |
+| 文字双击编辑 | 🟡 中 | 🟡 中 | P2 | ✅ 已完成 |
+| 拖拽图例 | 🟡 中 | 🔴 高 | P3 | ✅ 已完成 |
+| 坐标轴范围双击编辑 | 🟡 中 | 🟡 中 | P2 | ✅ 已完成 |
+| 元素字号/描边 | 🟢 低 | 🟢 低 | P2 | ✅ 已完成 |
+| 一键配色方案（直接改 plot.py） | 🟡 中 | 🟢 低 | P2 | ✅ 已完成（`/palette` 端点） |
+| DataGrid（Excel 风格表格） | 🟡 中 | 🟡 中 | P2 | ✅ 已完成 |
+| CodeMirror 脚本编辑器 | 🟢 低 | 🟢 低 | P3 | ✅ 已完成 |
+| 预览缩放工具栏 | 🟡 中 | 🟢 低 | P2 | ✅ 已完成 |
+| 记忆文件 UI 编辑 | 🟡 中 | 🟢 低 | P2 | ✅ 已完成 |
+| 图表模板（MVP 8 种） | 🟡 中 | 🟢 低 | P3 | ✅ 已完成 |
+| 上下文压缩 | 🔴 高 | 🟡 中 | P1 | ⏳ 未开始 |
+| 数据摘要工具 | 🟡 中 | 🟢 低 | P1 | ⏳ 未开始 |
+| 视觉反馈（基础版） | 🔴 高 | 🟡 中 | P1 | ⏳ 未开始 |
+| Agent 记忆工具（read/write/search） | 🟡 中 | 🟡 中 | P2 | ⏳ 未开始 |
+| Data Threads 分支 | 🟡 中 | 🟡 中 | P2 | ⏳ 未开始 |
+| 图表推荐 | 🟡 中 | 🟢 低 | P2 | ⏳ 未开始 |
+| DuckDB 大数据 | 🟢 低 | 🟡 中 | P3 | ⏳ 未开始 |
+| 多 Agent 协作 | 🟡 中 | 🔴 高 | P3 | ⏳ 未开始 |
+| 模板市场扩充至 20+ | 🟡 中 | 🟡 中 | P3 | ⏳ 未开始 |
 
 ---
 
@@ -285,6 +304,8 @@ Validator Agent → 检查数值 + 标签 + 视觉
 4. **类型标注** — 后端 Python 代码类型标注不完整，加上 mypy 检查
 5. **测试** — 目前零测试，至少需要核心工具的单元测试
 6. **WebSocket 重连** — 前端 WS 断连后无自动重连机制
+7. **`patch-code` 端点** — 前端 `SvgPreview.jsx` 依赖后端 `/patch-code` 实现图例拖拽/坐标轴/文字编辑的落盘，该端点目前尚未在 `backend/main.py` 中实现，需要补齐
+8. **Task 选中时自动 fetchSvg** — 从侧边栏点击 task 不会触发 `fetchSvg`，svgContent 只在 agent 完成或手动"▶ 运行"后才加载；需要在 `setActive` 或 `TaskMainArea` 挂载时补一次初始拉取
 
 ---
 
