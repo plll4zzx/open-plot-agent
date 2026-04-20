@@ -1,5 +1,25 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { Minus, Plus, Maximize2, Move } from 'lucide-react'
 import { useStore } from '../store'
+
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 8
+const ZOOM_STEP = 1.2
+
+function parseSvgSize(svgContent) {
+  if (!svgContent) return null
+  const viewBoxMatch = svgContent.match(/viewBox\s*=\s*"([^"]+)"/i)
+  if (viewBoxMatch) {
+    const parts = viewBoxMatch[1].trim().split(/\s+/).map(Number)
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      return { w: parts[2], h: parts[3] }
+    }
+  }
+  const wMatch = svgContent.match(/<svg[^>]*\bwidth\s*=\s*"([\d.]+)(pt|px|mm)?"/i)
+  const hMatch = svgContent.match(/<svg[^>]*\bheight\s*=\s*"([\d.]+)(pt|px|mm)?"/i)
+  if (wMatch && hMatch) return { w: parseFloat(wMatch[1]), h: parseFloat(hMatch[1]) }
+  return null
+}
 
 /**
  * Renders the backend SVG in the preview area.
@@ -63,10 +83,74 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     activeProjectId, activeExperimentId, activeTaskId,
     updateSvgContent, fetchGitLog,
   } = useStore()
+  const scrollRef = useRef(null)
   const containerRef = useRef(null)
   const hoveredRef = useRef(null)
   const dragStateRef = useRef(null)
   const [dragFeedback, setDragFeedback] = useState(null) // 'dragging' | 'saving' | 'saved' | 'error' | null
+  const [zoom, setZoom] = useState(1)
+  const [fitMode, setFitMode] = useState('width') // 'width' | 'page' | 'height' | 'manual'
+
+  const svgSize = useMemo(() => parseSvgSize(svgContent), [svgContent])
+
+  // ── Compute a fit ratio relative to the scroll area ──────────────────
+  const computeFit = useCallback((mode) => {
+    const scroll = scrollRef.current
+    if (!scroll || !svgSize) return 1
+    const padding = 32
+    const availW = scroll.clientWidth - padding
+    const availH = scroll.clientHeight - padding
+    if (availW <= 0 || availH <= 0) return 1
+    if (mode === 'width') return availW / svgSize.w
+    if (mode === 'height') return availH / svgSize.h
+    if (mode === 'page') return Math.min(availW / svgSize.w, availH / svgSize.h)
+    return 1
+  }, [svgSize])
+
+  useLayoutEffect(() => {
+    if (fitMode === 'manual') return
+    setZoom(computeFit(fitMode))
+  }, [svgContent, fitMode, computeFit])
+
+  useEffect(() => {
+    if (fitMode === 'manual' || !scrollRef.current) return
+    const ro = new ResizeObserver(() => setZoom(computeFit(fitMode)))
+    ro.observe(scrollRef.current)
+    return () => ro.disconnect()
+  }, [fitMode, computeFit])
+
+  // ── Ctrl/Cmd + wheel zoom ────────────────────────────────────────────
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+      setZoom(z => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z * factor)))
+      setFitMode('manual')
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // ── Resize the inner SVG to naturalSize × zoom so content scales and the
+  //    inner wrapper gets the actual pixel dimensions scrollbars need. ─────
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el || !svgSize) return
+    const svg = el.querySelector('svg')
+    if (!svg) return
+    svg.setAttribute('width', svgSize.w * zoom)
+    svg.setAttribute('height', svgSize.h * zoom)
+    svg.style.display = 'block'
+    svg.style.maxWidth = 'none'
+    svg.style.maxHeight = 'none'
+  }, [svgContent, svgSize, zoom])
+
+  const zoomIn = () => { setZoom(z => Math.min(ZOOM_MAX, z * ZOOM_STEP)); setFitMode('manual') }
+  const zoomOut = () => { setZoom(z => Math.max(ZOOM_MIN, z / ZOOM_STEP)); setFitMode('manual') }
+  const zoomReset = () => { setZoom(1); setFitMode('manual') }
 
   // Inline-edit state for text elements (title/xlabel/ylabel/annotation_*)
   // { gid, x, y, width, height, value } — when set, we render a foreignObject overlay
@@ -526,19 +610,88 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     )
   }
 
+  const scaledW = svgSize ? svgSize.w * zoom : undefined
+  const scaledH = svgSize ? svgSize.h * zoom : undefined
+
   return (
     <div className="relative flex-1 flex flex-col">
-      <div
-        ref={containerRef}
-        className="relative flex-1 flex items-center justify-center p-4 overflow-hidden"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onMouseUp={handleMouseUp}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        style={{ '& svg': { maxWidth: '100%', maxHeight: '100%', height: 'auto' } }}
-      >
+      {/* Zoom toolbar */}
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b flex-shrink-0"
+        style={{ borderColor: '#E7E0D1', background: 'rgba(255,255,255,0.5)' }}>
+        <button onClick={zoomOut} title="缩小"
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5"
+          style={{ color: '#57534E' }}>
+          <Minus size={12} />
+        </button>
+        <button onClick={zoomReset} title="100%"
+          className="min-w-[46px] h-6 px-1.5 flex items-center justify-center rounded hover:bg-black/5"
+          style={{
+            fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+            color: fitMode === 'manual' ? '#1C1917' : '#78716C',
+            fontWeight: fitMode === 'manual' ? 500 : 400,
+          }}>
+          {Math.round(zoom * 100)}%
+        </button>
+        <button onClick={zoomIn} title="放大"
+          className="w-6 h-6 flex items-center justify-center rounded hover:bg-black/5"
+          style={{ color: '#57534E' }}>
+          <Plus size={12} />
+        </button>
+        <div className="w-px h-4 mx-1" style={{ background: '#E7E0D1' }} />
+        <button onClick={() => setFitMode('width')} title="适合宽度"
+          className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
+          style={{
+            fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
+            color: fitMode === 'width' ? '#1C1917' : '#78716C',
+            fontWeight: fitMode === 'width' ? 500 : 400,
+            background: fitMode === 'width' ? 'rgba(0,0,0,0.04)' : 'transparent',
+          }}>
+          <Move size={11} style={{ transform: 'rotate(90deg)' }} />宽度
+        </button>
+        <button onClick={() => setFitMode('height')} title="适合高度"
+          className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
+          style={{
+            fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
+            color: fitMode === 'height' ? '#1C1917' : '#78716C',
+            fontWeight: fitMode === 'height' ? 500 : 400,
+            background: fitMode === 'height' ? 'rgba(0,0,0,0.04)' : 'transparent',
+          }}>
+          <Move size={11} />高度
+        </button>
+        <button onClick={() => setFitMode('page')} title="适合页面"
+          className="h-6 px-2 flex items-center gap-1 rounded hover:bg-black/5"
+          style={{
+            fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace',
+            color: fitMode === 'page' ? '#1C1917' : '#78716C',
+            fontWeight: fitMode === 'page' ? 500 : 400,
+            background: fitMode === 'page' ? 'rgba(0,0,0,0.04)' : 'transparent',
+          }}>
+          <Maximize2 size={11} />页面
+        </button>
+        <span className="ml-auto font-mono" style={{ fontSize: 10, color: '#C4BEB7' }}>
+          ⌘/Ctrl + 滚轮 缩放
+        </span>
+      </div>
+
+      {/* Scroll area */}
+      <div ref={scrollRef}
+        className="flex-1 overflow-auto"
+        style={{ background: 'rgba(0,0,0,0.015)' }}>
+        <div
+          ref={containerRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          className="relative"
+          style={{
+            width: scaledW ? `${scaledW}px` : 'auto',
+            height: scaledH ? `${scaledH}px` : 'auto',
+            margin: 16,
+          }}
+        >
         <div
           className="contents"
           dangerouslySetInnerHTML={{ __html: svgContent }}
@@ -705,6 +858,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Drag feedback toast */}

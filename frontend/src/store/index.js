@@ -170,4 +170,13 @@ export const useStore = create((set, get) => ({
   chatSessions: {},   // { [taskId]: Message[] }
   setChatSession: (taskId, messages) =>
     set(state => ({ chatSessions: { ...state.chatSessions, [taskId]: messages } })),
+
+  // ── Chat composer draft (shared, not per-task) ────────────
+  chatDraft: '',
+  setChatDraft: (text) => set({ chatDraft: typeof text === 'function' ? text(get().chatDraft) : text }),
+  appendChatDraft: (text) => set(state => ({
+    chatDraft: state.chatDraft
+      ? `${state.chatDraft.replace(/\s+$/, '')}\n\n${text}\n`
+      : `${text}\n`,
+  })),
 }))

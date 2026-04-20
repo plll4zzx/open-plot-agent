@@ -23,7 +23,7 @@ function inferType(vals) {
 
 // ── "Send to Agent" floating button ──────────────────────────
 
-function SendSelectionButton({ getSelection, onSend }) {
+function SendSelectionButton({ getSelection, onStage }) {
   const [hasSelection, setHasSelection] = useState(false)
 
   useEffect(() => {
@@ -39,7 +39,7 @@ function SendSelectionButton({ getSelection, onSend }) {
 
   const handleClick = () => {
     const text = getSelection()
-    if (text) onSend(text)
+    if (text) onStage(text)
   }
 
   return (
@@ -52,28 +52,25 @@ function SendSelectionButton({ getSelection, onSend }) {
         border: '1px solid rgba(255,255,255,0.1)',
       }}>
       <MessageSquare size={11} />
-      发送选中内容到 Agent
+      添加到对话框
     </button>
   )
 }
 
 // ── ProcessedTab ──────────────────────────────────────────────
 
-export function ProcessedTab({ onTableReady, onSendToAgent }) {
+export function ProcessedTab({ onTableReady, onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId } = useStore()
   const [rows, setRows] = useState([])
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
-  const [selectedCells, setSelectedCells] = useState(null) // {startR, startC, endR, endC}
   const pasteRef = useRef(null)
-  const tableRef = useRef(null)
 
   // Reset and reload when active task changes
   useEffect(() => {
     setRows([])
     setSaved(false)
     setSaveError(null)
-    setSelectedCells(null)
     if (!activeProjectId || !activeExperimentId || !activeTaskId) return
     fetch(`${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/processed/data.csv`)
       .then(r => r.ok ? r.json() : null)
@@ -146,20 +143,20 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
     }
   }
 
-  // Get text selection from the table area
+  // Get text selection from the table area — tag it with the CSV path so the
+  // agent knows what file it came from.
   const getTableSelection = useCallback(() => {
     const sel = window.getSelection()
     if (!sel || !sel.toString().trim()) return null
     const text = sel.toString().trim()
-    // Format as context
-    return `[表格数据选中内容]\n${text}`
+    return `[表格数据选中内容 (processed/data.csv)]\n${text}`
   }, [])
 
-  const sendSelectionToAgent = useCallback((text) => {
-    if (onSendToAgent && text) {
-      onSendToAgent(text)
+  const stageSelection = useCallback((text) => {
+    if (onStageToChat && text) {
+      onStageToChat(text)
     }
-  }, [onSendToAgent])
+  }, [onStageToChat])
 
   const header = rows[0] ?? []
   const body = rows.slice(1)
@@ -229,42 +226,15 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto mx-4 mb-3 rounded-md border"
-            style={{ borderColor: '#E7E0D1', background: '#FFFFFF', fontSize: 11.5, fontFamily: 'JetBrains Mono, monospace' }}>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr style={{ background: '#FAF6ED', borderBottom: '1px solid #E7E0D1' }}>
-                  {header.map((h, ci) => (
-                    <th key={ci} className="px-2 py-1.5 text-left sticky top-0"
-                      style={{ background: '#FAF6ED', borderRight: '1px solid #F1ECE0', fontWeight: 500, color: '#57534E', minWidth: 80 }}>
-                      <div>{h}</div>
-                      <div style={{ fontSize: 9.5, color: '#A8A29E', fontWeight: 400 }}>{types[ci]}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {body.map((row, ri) => (
-                  <tr key={ri} style={{ borderBottom: '1px solid #F9F6F0' }}>
-                    {header.map((_, ci) => (
-                      <td key={ci}
-                        contentEditable suppressContentEditableWarning
-                        onBlur={e => updateCell(ri + 1, ci, e.currentTarget.textContent)}
-                        className="px-2 py-1 outline-none"
-                        style={{ borderRight: '1px solid #F9F6F0', color: '#1C1917' }}>
-                        {row[ci] ?? ''}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex-1 overflow-hidden mx-4 mb-3 rounded-md border flex"
+            style={{ borderColor: '#E7E0D1', background: '#FFFFFF' }}>
+            <DataGrid rows={rows} onChange={handleGridChange} types={types} />
           </div>
 
           {/* Send selection button */}
           <SendSelectionButton
             getSelection={getTableSelection}
-            onSend={sendSelectionToAgent}
+            onStage={stageSelection}
           />
         </>
       )}
@@ -301,7 +271,7 @@ export function ProcessedTab({ onTableReady, onSendToAgent }) {
 
 // ── ScriptTab — editable chart/plot.py, refreshes when SVG updates ──────────
 
-export function ScriptTab({ onSendToAgent }) {
+export function ScriptTab({ onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, fetchSvg, fetchGitLog } = useStore()
   const [code, setCode] = useState('')
   const [savedCode, setSavedCode] = useState('')  // track what's on disk
@@ -385,11 +355,11 @@ export function ScriptTab({ onSendToAgent }) {
     return `[代码选中内容 (chart/plot.py)]\n\`\`\`python\n${text}\n\`\`\``
   }, [])
 
-  const sendSelectionToAgent = useCallback((text) => {
-    if (onSendToAgent && text) {
-      onSendToAgent(text)
+  const stageSelection = useCallback((text) => {
+    if (onStageToChat && text) {
+      onStageToChat(text)
     }
-  }, [onSendToAgent])
+  }, [onStageToChat])
 
   return (
     <div className="flex flex-col h-full relative">
@@ -424,7 +394,7 @@ export function ScriptTab({ onSendToAgent }) {
       {/* Send selection button */}
       <SendSelectionButton
         getSelection={getCodeSelection}
-        onSend={sendSelectionToAgent}
+        onStage={stageSelection}
       />
 
       {output && (

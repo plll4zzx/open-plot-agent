@@ -13,6 +13,8 @@ import { ElementEditor } from './components/ElementEditor'
 import { PalettePanel, applyPaletteDirect } from './components/PalettePanel'
 import { ExperimentPanel } from './components/ExperimentPanel'
 import { SettingsModal } from './components/SettingsModal'
+import { MemoryPanel } from './components/MemoryPanel'
+import { TemplatePanel } from './components/TemplatePanel'
 import './index.css'
 
 // ── Shared atoms ────────────────────────────────────────────
@@ -418,7 +420,7 @@ const PALETTES = [
   { name: 'Dark2',     colors: ['#1B9E77', '#D95F02', '#7570B3', '#E7298A', '#66A61E'] },
 ]
 
-function TaskMainArea({ showToast, generating, send, onElementClick }) {
+function TaskMainArea({ showToast, generating, send, onElementClick, onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, gitLog, gitStatus, fetchSvg, fetchGitLog, updateSvgContent } = useStore()
   const [tab, setTab] = useState('preview')
   const [showBorders, setShowBorders] = useState(true)
@@ -550,10 +552,10 @@ function TaskMainArea({ showToast, generating, send, onElementClick }) {
       {/* Tab content — Processed and Pipeline stay mounted (CSS-hidden) to preserve state */}
       <div className="flex-1 overflow-hidden flex flex-col">
         <div style={{ display: tab === 'processed' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-          <ProcessedTab onTableReady={handleTableReady} onSendToAgent={(text) => send?.(`${text}\n\n请根据上面选中的内容回答或操作。`)} />
+          <ProcessedTab onTableReady={handleTableReady} onStageToChat={onStageToChat} />
         </div>
         <div style={{ display: tab === 'script' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
-          <ScriptTab onSendToAgent={(text) => send?.(`${text}\n\n请根据上面选中的代码回答或操作。`)} />
+          <ScriptTab onStageToChat={onStageToChat} />
         </div>
         {tab === 'preview' && (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -654,7 +656,7 @@ function DragHandle({ onDragStart }) {
 // ── Workspace ────────────────────────────────────────────────
 
 function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
-  const { activeExperimentId, activeTaskId, gitLog, fetchGitLog } = useStore()
+  const { activeExperimentId, activeTaskId, gitLog, fetchGitLog, appendChatDraft } = useStore()
   const [provider, setProvider] = useState('ollama')
   const { messages, send, generating, stop } = useAgentChat(provider)
   const [rightTab, setRightTab] = useState('chat')
@@ -668,6 +670,12 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
     setSelectedEl({ gid, element, container })
     setRightTab('edit')
   }, [])
+
+  // Stage selected text into the chat composer; user then decides to send.
+  const stageToChat = useCallback((text) => {
+    appendChatDraft(text)
+    setRightTab('chat')
+  }, [appendChatDraft])
 
   const startDrag = (e, type) => {
     e.preventDefault()
@@ -703,7 +711,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
       {/* Main area */}
       <main className="flex flex-col overflow-hidden flex-1 min-w-0">
         {activeTaskId
-          ? <TaskMainArea showToast={showToast} generating={generating} send={send} onElementClick={onElementClick} />
+          ? <TaskMainArea showToast={showToast} generating={generating} send={send} onElementClick={onElementClick} onStageToChat={stageToChat} />
           : activeExperimentId
             ? <ExperimentPanel />
             : (

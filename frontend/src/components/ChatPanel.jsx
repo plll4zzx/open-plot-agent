@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, ChevronDown, ChevronRight } from 'lucide-react'
+import { useStore } from '../store'
 
 // ── Think-tag parser ──────────────────────────────────────────
 
@@ -217,12 +218,23 @@ function ProviderPill({ provider, onChange }) {
 // ── ChatPanel ─────────────────────────────────────────────────
 
 export function ChatPanel({ messages, send, generating, provider, onProviderChange }) {
-  const [input, setInput] = useState('')
+  const { chatDraft, setChatDraft } = useStore()
+  const input = chatDraft
+  const setInput = setChatDraft
   const bottomRef = useRef(null)
+  const textareaRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Auto-grow textarea to fit staged content (e.g. a big code block pasted in)
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, 400) + 'px'
+  }, [input])
 
   const submit = () => {
     if (!input.trim()) return
@@ -252,6 +264,7 @@ export function ChatPanel({ messages, send, generating, provider, onProviderChan
         <div className="rounded-lg border p-2.5"
           style={{ background: '#FFFFFF', borderColor: '#E7E0D1' }}>
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
