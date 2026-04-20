@@ -887,6 +887,7 @@ class PatchCodeRequest(BaseModel):
     gid: str
     property: str        # "fill", "text", "font-size", "stroke-width"
     value: str
+    original_value: str | None = None  # used to disambiguate when multiple elements share a gid
 
 
 @app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/patch-code")
@@ -901,7 +902,7 @@ async def patch_code(project_id: str, experiment_id: str, task_id: str, req: Pat
         raise HTTPException(404, "plot.py not found")
 
     code = plot_py.read_text()
-    result = apply_patch(code, req.gid, req.property, req.value)
+    result = apply_patch(code, req.gid, req.property, req.value, original_value=req.original_value)
 
     if not result.success:
         return {"ok": False, "error": result.message}

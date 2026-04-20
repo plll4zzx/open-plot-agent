@@ -370,6 +370,9 @@ export function ScriptTab({ onStageToChat }) {
           {isModified && (
             <span style={{ fontSize: 9, color: '#B45309', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
           )}
+          <span style={{ fontSize: 10, color: '#C4BEB7', fontFamily: 'JetBrains Mono, monospace' }}>
+            ⌘F 查找 · ⌘H 替换 · ⌘S 保存
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           {isModified && (

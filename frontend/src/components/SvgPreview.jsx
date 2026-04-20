@@ -36,10 +36,10 @@ function parseSvgSize(svgContent) {
  *   dblclick on xaxis/yaxis    → opens an inline xlim/ylim editor floating panel
  */
 
-const GID_PREFIXES = ['bar_', 'line_', 'scatter_', 'patch_', 'annotation_']
-const GID_EXACT = ['title', 'xlabel', 'ylabel', 'legend', 'xaxis', 'yaxis']
-const TEXT_EDITABLE_PREFIXES = ['annotation_']
-const TEXT_EDITABLE_EXACT = ['title', 'xlabel', 'ylabel']
+const GID_PREFIXES = ['bar_', 'line_', 'scatter_', 'patch_', 'annotation_', 'legend_', 'title_', 'xlabel_', 'ylabel_']
+const GID_EXACT = ['title', 'xlabel', 'ylabel', 'legend', 'xaxis', 'yaxis', 'suptitle']
+const TEXT_EDITABLE_PREFIXES = ['annotation_', 'title_', 'xlabel_', 'ylabel_']
+const TEXT_EDITABLE_EXACT = ['title', 'xlabel', 'ylabel', 'suptitle']
 const AXIS_GIDS = ['xaxis', 'yaxis']
 
 function isSemanticGid(id) {
@@ -87,7 +87,8 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   const containerRef = useRef(null)
   const hoveredRef = useRef(null)
   const dragStateRef = useRef(null)
-  const [dragFeedback, setDragFeedback] = useState(null) // 'dragging' | 'saving' | 'saved' | 'error' | null
+  const globalDragCleanupRef = useRef(null) // holds { onMove, onUp } to remove at drag end
+  const [dragFeedback, setDragFeedback] = useState(null) // 'saving' | 'saved' | 'error' | null (no longer 'dragging' — managed via ref)
   const [zoom, setZoom] = useState(1)
   const [fitMode, setFitMode] = useState('width') // 'width' | 'page' | 'height' | 'manual'
 
@@ -199,7 +200,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
       //   text     → amber (double-click to edit)
       //   other    → amber
       const gid = target.getAttribute('id')
-      const isLegend = gid === 'legend'
+      const isLegend = gid === 'legend' || gid.startsWith('legend_')
       const isAxis = AXIS_GIDS.includes(gid)
       const stroke =
         isLegend ? '#7C3AED' :
@@ -226,7 +227,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     svg.querySelectorAll('[id]').forEach(target => {
       const gid = target.getAttribute('id')
       if (!isSemanticGid(gid)) return
-      if (gid === 'legend') {
+      if (gid === 'legend' || gid.startsWith('legend_')) {
         target.style.cursor = 'grab'
       } else if (AXIS_GIDS.includes(gid)) {
         target.style.cursor = 'zoom-in'  // Hint that double-click does something
@@ -241,24 +242,47 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   }, [svgContent, showBorders, removeHoverRect])
 
   // ── Legend drag handlers ─────────────────────────────────────────────
+  // Use refs so global listeners always call the latest handler version.
+  const handleMouseMoveRef = useRef(null)
+  const handleMouseUpRef = useRef(null)
+
+  // Computed once per drag, not via React state, to avoid re-render lag.
+  function applyDragMove(e) {
+    const drag = dragStateRef.current
+    if (!drag) return
+    const dxPx = e.clientX - drag.originX
+    const dyPx = e.clientY - drag.originY
+    const svg = drag.svgEl
+    const svgWidth = drag.svgRect.width
+    const svgHeight = drag.svgRect.height
+    const viewBox = svg.viewBox?.baseVal
+    const vbW = viewBox?.width || parseFloat(svg.getAttribute('width')) || svgWidth
+    const vbH = viewBox?.height || parseFloat(svg.getAttribute('height')) || svgHeight
+    const tx = drag.initialTx + dxPx * (vbW / svgWidth)
+    const ty = drag.initialTy + dyPx * (vbH / svgHeight)
+    drag.currentTx = tx
+    drag.currentTy = ty
+    drag.legendEl.setAttribute('transform', `translate(${tx}, ${ty})`)
+  }
 
   const handleMouseDown = useCallback((e) => {
     if (!showBorders) return
-    if (textEdit || axisEdit) return  // Don't start drags while editing
+    if (textEdit || axisEdit) return
     const el = containerRef.current
     if (!el) return
     const svg = el.querySelector('svg')
     if (!svg) return
 
     const target = findSemanticAncestor(e.target, el)
-    if (!target || target.getAttribute('id') !== 'legend') return
+    if (!target) return
+    const targetGid = target.getAttribute('id')
+    if (targetGid !== 'legend' && !targetGid.startsWith('legend_')) return
 
     e.preventDefault()
     e.stopPropagation()
 
     const svgRect = svg.getBoundingClientRect()
     const legendBBox = target.getBBox()
-
     const existingTransform = target.getAttribute('transform') || ''
     const translateMatch = existingTransform.match(/translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/)
     const initialTx = translateMatch ? parseFloat(translateMatch[1]) : 0
@@ -279,32 +303,33 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
 
     target.style.cursor = 'grabbing'
     target.style.opacity = '0.85'
-    setDragFeedback('dragging')
     removeHoverRect()
+
+    // Attach global listeners SYNCHRONOUSLY so drag never loses the cursor,
+    // even if the pointer leaves the container before React re-renders.
+    // passive:false on mousemove lets us call preventDefault() to block scroll.
+    const onGlobalMove = (ev) => {
+      ev.preventDefault()
+      applyDragMove(ev)
+    }
+    const onGlobalUp = () => {
+      window.removeEventListener('mousemove', onGlobalMove)
+      window.removeEventListener('mouseup', onGlobalUp)
+      globalDragCleanupRef.current = null
+      handleMouseUpRef.current?.()
+    }
+    globalDragCleanupRef.current = { onGlobalMove, onGlobalUp }
+    window.addEventListener('mousemove', onGlobalMove, { passive: false })
+    window.addEventListener('mouseup', onGlobalUp)
+
+    // Show the "dragging" toast (state update triggers re-render but global
+    // listeners are already attached above, so no tracking gap).
+    setDragFeedback('dragging')
   }, [showBorders, removeHoverRect, textEdit, axisEdit])
 
   const handleMouseMove = useCallback((e) => {
-    const drag = dragStateRef.current
-    if (drag) {
-      const dxPx = e.clientX - drag.originX
-      const dyPx = e.clientY - drag.originY
-
-      const svgWidth = drag.svgRect.width
-      const svgHeight = drag.svgRect.height
-      const svg = drag.svgEl
-      const viewBox = svg.viewBox?.baseVal
-      const vbW = viewBox?.width || parseFloat(svg.getAttribute('width')) || svgWidth
-      const vbH = viewBox?.height || parseFloat(svg.getAttribute('height')) || svgHeight
-      const scaleX = vbW / svgWidth
-      const scaleY = vbH / svgHeight
-
-      const tx = drag.initialTx + dxPx * scaleX
-      const ty = drag.initialTy + dyPx * scaleY
-      drag.currentTx = tx
-      drag.currentTy = ty
-      drag.legendEl.setAttribute('transform', `translate(${tx}, ${ty})`)
-      return
-    }
+    // During drag: handled by global listener; here we only do hover highlights.
+    if (dragStateRef.current) return
 
     if (!showBorders) return
     if (textEdit || axisEdit) return
@@ -325,8 +350,15 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     const drag = dragStateRef.current
     if (!drag) return
 
-    const { legendEl, svgEl, legendBBox, currentTx, currentTy } = drag
+    // Clean up any remaining global listeners (in case mouseup fired locally).
+    const cleanup = globalDragCleanupRef.current
+    if (cleanup) {
+      window.removeEventListener('mousemove', cleanup.onGlobalMove)
+      window.removeEventListener('mouseup', cleanup.onGlobalUp)
+      globalDragCleanupRef.current = null
+    }
 
+    const { legendEl, svgEl, legendBBox, currentTx, currentTy } = drag
     legendEl.style.cursor = 'grab'
     legendEl.style.opacity = ''
     dragStateRef.current = null
@@ -337,14 +369,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
 
     const newX = legendBBox.x + currentTx
     const newY = legendBBox.y + currentTy
-
     const figX = newX / vbW
     const figY = 1 - (newY + legendBBox.height) / vbH
 
-    const totalDrag = Math.hypot(
-      currentTx - drag.initialTx,
-      currentTy - drag.initialTy,
-    )
+    const totalDrag = Math.hypot(currentTx - drag.initialTx, currentTy - drag.initialTy)
     if (totalDrag < 3) {
       setDragFeedback(null)
       return
@@ -381,6 +409,10 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     }
   }, [activeProjectId, activeExperimentId, activeTaskId, updateSvgContent, fetchGitLog])
 
+  // Keep refs in sync so the synchronous global listeners always call the
+  // latest closure (avoids stale-closure bugs on project/task changes).
+  useEffect(() => { handleMouseUpRef.current = handleMouseUp }, [handleMouseUp])
+
   const handleMouseLeave = useCallback(() => {
     if (dragStateRef.current) return
     removeHoverRect()
@@ -389,7 +421,9 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   const handleClick = useCallback((e) => {
     if (!showBorders) return
     if (textEdit || axisEdit) return  // ignore clicks while inline editor is open
-    if (dragFeedback === 'saving' || dragFeedback === 'saved') return
+    // Ignore clicks that are the tail of a drag gesture or during save.
+    if (dragStateRef.current) return
+    if (dragFeedback === 'saving' || dragFeedback === 'saved' || dragFeedback === 'dragging') return
 
     const el = containerRef.current
     if (!el) return
@@ -506,7 +540,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
     setTextEditSaving(true)
     try {
       const result = await patchCode(activeProjectId, activeExperimentId, activeTaskId, {
-        gid, property: 'text', value,
+        gid, property: 'text', value, original_value: originalValue,
       })
       if (result.ok) {
         if (result.svg_content) updateSvgContent(result.svg_content)
@@ -561,21 +595,6 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
       setAxisEdit(null)
     }
   }, [axisEdit, activeProjectId, activeExperimentId, activeTaskId, updateSvgContent, fetchGitLog])
-
-  // Attach/detach global mousemove+mouseup during drag so it keeps tracking
-  // even if the pointer leaves the preview area.
-  useEffect(() => {
-    if (!dragFeedback || dragFeedback !== 'dragging') return
-
-    const onMove = (ev) => handleMouseMove(ev)
-    const onUp = () => handleMouseUp()
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [dragFeedback, handleMouseMove, handleMouseUp])
 
   // Close inline editors on Escape
   useEffect(() => {

@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Callable, Coroutine
 
-from agent.providers.base import Done, LLMProvider, TextDelta, ToolCall
+from agent.providers.base import Done, LLMProvider, TextDelta, ThinkingDelta, ToolCall
 from agent.chart_validator import (
     format_issues_for_agent,
     validate_chart,
@@ -104,18 +104,70 @@ what chart type fits, call recommend_charts(path) first.
 conversation, record it with memory_write at the appropriate scope.
 
 ## Code requirements
-- Read data: pd.read_csv("../processed/data.csv")
-- Save output: fig.savefig("output.svg")
-- Set MPLBACKEND="svg" is already configured — do not change it
-- Assign semantic gids to every major element:
-    title.set_gid("title")
-    ax.xaxis.label.set_gid("xlabel")
-    ax.yaxis.label.set_gid("ylabel")
-    for i, patch in enumerate(ax.patches): patch.set_gid(f"bar_{i}")
-    for i, line in enumerate(ax.lines): line.set_gid(f"line_{i}")
-    for i, t in enumerate(ax.texts): t.set_gid(f"annotation_{i}")
-- Default palette (Okabe-Ito): ["#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7"]
-- After success briefly describe what you made and any key design decisions
+
+### File I/O
+- Read data: `pd.read_csv("../processed/data.csv")`
+- Save output: `fig.savefig("output.svg")`
+- MPLBACKEND="svg" is already configured — do not add or change it.
+
+### Variable naming (strictly required)
+The UI patches plot.py with regex to enable live editing without re-running the LLM.
+Predictable names are essential:
+- Figure: **always `fig`** — e.g. `fig, ax = plt.subplots()` or `fig = plt.figure()`
+- Single axes: **`ax`**
+- Multiple axes: unpack explicitly — `fig, (ax0, ax1) = plt.subplots(1, 2)`
+  or `fig, axes = plt.subplots(2, 2)` then `ax0, ax1, ax2, ax3 = axes.flat`
+- Never use anonymous axes (`plt.gca()`) or generic names (`f`, `a`, `axis`).
+
+### Color palette (strictly required)
+Always define a top-level `PALETTE` list so the palette-swap feature can hot-replace colors:
+```python
+PALETTE = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"]
+```
+Use `PALETTE[0]`, `PALETTE[1]`, … when assigning colors to plot calls.
+Default is Okabe-Ito (color-blind-safe). Use this unless the user specifies otherwise.
+
+### Titles and labels: use **literal strings only**
+The text-patch system identifies lines by matching the literal string in the source code.
+If the title is a variable or f-string the patch cannot find it and editing will silently fail.
+- ✅ `ax.set_title("Treatment vs Control")` — patchable
+- ✅ `fig.suptitle("Figure 1: Overview")` — patchable
+- ❌ `ax.set_title(title_str)` — NOT patchable
+- ❌ `ax.set_title(f"{group} results")` — NOT patchable
+
+### GID tagging (strictly required for hover / click / drag in the preview)
+
+**Single-axes figure:**
+```python
+ax.title.set_gid("title")
+ax.xaxis.label.set_gid("xlabel")
+ax.yaxis.label.set_gid("ylabel")
+leg = ax.legend(...); leg.set_gid("legend")
+for i, patch in enumerate(ax.patches):      patch.set_gid(f"bar_{i}")
+for i, line  in enumerate(ax.lines):        line.set_gid(f"line_{i}")
+for i, coll  in enumerate(ax.collections): coll.set_gid(f"scatter_{i}")
+for i, txt   in enumerate(ax.texts):        txt.set_gid(f"annotation_{i}")
+```
+
+**Multi-axes (subplots) figure — index every element by axis position:**
+```python
+sup = fig.suptitle("Overall Title")   # overall figure title
+sup.set_gid("suptitle")
+
+for i, ax in enumerate([ax0, ax1, ...]):   # list axes explicitly, do NOT use axes.flat
+    ax.set_title("Subplot title as a literal string")
+    ax.title.set_gid(f"title_{i}")
+    ax.xaxis.label.set_gid(f"xlabel_{i}")
+    ax.yaxis.label.set_gid(f"ylabel_{i}")
+    leg = ax.get_legend()
+    if leg: leg.set_gid(f"legend_{i}")
+    for j, patch in enumerate(ax.patches):      patch.set_gid(f"bar_{i}_{j}")
+    for j, line  in enumerate(ax.lines):        line.set_gid(f"line_{i}_{j}")
+    for j, coll  in enumerate(ax.collections): coll.set_gid(f"scatter_{i}_{j}")
+    for j, txt   in enumerate(ax.texts):        txt.set_gid(f"annotation_{i}_{j}")
+```
+
+- After success briefly describe what you made and any key design decisions.
 """
 
 
@@ -281,10 +333,14 @@ class AgentLoop:
 
         while tool_rounds <= max_tool_rounds:
             pending_tool_calls: list[ToolCall] = []
+            full_assistant_content: list[dict] | None = None  # Populated when extended thinking is on
 
             # Stream from LLM
             async for event in self.provider.chat(messages, tools):
-                if isinstance(event, TextDelta):
+                if isinstance(event, ThinkingDelta):
+                    await send(_ws_event("think_delta", content=event.content))
+
+                elif isinstance(event, TextDelta):
                     assistant_text += event.content
                     await send(_ws_event("text_delta", content=event.content))
 
@@ -298,11 +354,18 @@ class AgentLoop:
                     ))
 
                 elif isinstance(event, Done):
+                    full_assistant_content = event.full_content
                     # Exit only when there are no pending tool calls.
                     # Anthropic uses stop_reason="tool_use"; Ollama uses "tool_calls".
                     # Rather than matching strings, trust the actual pending list.
                     if not pending_tool_calls:
-                        if assistant_text:
+                        if full_assistant_content is not None:
+                            # Round-trip thinking blocks with signatures (required by Anthropic)
+                            self.history.append({
+                                "role": "assistant",
+                                "content": full_assistant_content,
+                            })
+                        elif assistant_text:
                             self.history.append({
                                 "role": "assistant",
                                 "content": assistant_text,
@@ -400,17 +463,21 @@ class AgentLoop:
 
             # Append tool call + results in the format the provider expects
             if self.provider.tool_format == "anthropic":
-                content_blocks = []
-                if assistant_text:
-                    content_blocks.append({"type": "text", "text": assistant_text})
-                for tc, _, _ in results:
-                    content_blocks.append({
-                        "type": "tool_use",
-                        "id": tc.call_id,
-                        "name": tc.name,
-                        "input": tc.input,
-                    })
-                messages.append({"role": "assistant", "content": content_blocks})
+                if full_assistant_content is not None:
+                    # full_content already has thinking blocks (with signatures), text, and tool_use
+                    messages.append({"role": "assistant", "content": full_assistant_content})
+                else:
+                    content_blocks = []
+                    if assistant_text:
+                        content_blocks.append({"type": "text", "text": assistant_text})
+                    for tc, _, _ in results:
+                        content_blocks.append({
+                            "type": "tool_use",
+                            "id": tc.call_id,
+                            "name": tc.name,
+                            "input": tc.input,
+                        })
+                    messages.append({"role": "assistant", "content": content_blocks})
                 messages.append({"role": "user", "content": [
                     {"type": "tool_result", "tool_use_id": tc.call_id,
                      "content": json.dumps(res)}

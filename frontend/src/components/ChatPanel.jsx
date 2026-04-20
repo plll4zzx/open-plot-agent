@@ -136,6 +136,10 @@ function MessageBubble({ msg }) {
     return <ToolCallRow msg={msg} />
   }
 
+  if (msg.role === 'thinking') {
+    return <ThinkingBlock content={msg.content} complete={msg.complete ?? false} />
+  }
+
   if (msg.role === 'agent') {
     const parts = parseContent(msg.content || '')
     return (
@@ -247,7 +251,7 @@ export function ChatPanel({ messages, send, generating, provider, onProviderChan
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {messages.map(m => <MessageBubble key={m.id} msg={m} />)}
-        {generating && (
+        {generating && !messages.some(m => m.role === 'thinking' && !m.complete) && (
           <div className="flex items-center gap-1.5 mb-2">
             <div className="w-4 h-4 rounded flex items-center justify-center"
               style={{ background: 'rgba(124,58,237,0.12)' }}>

@@ -80,6 +80,10 @@ def get_provider_config(provider_name: str | None = None) -> tuple[str, Provider
         return name, ProviderConfig(
             model=cfg.get("model", "claude-sonnet-4-6"),
             api_key=api_key,
+            extra={
+                "thinking": cfg.get("thinking", True),
+                "thinking_budget": cfg.get("thinking_budget", 5000),
+            },
         )
     elif name == "ollama":
         return name, ProviderConfig(

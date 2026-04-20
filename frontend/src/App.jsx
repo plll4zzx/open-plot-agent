@@ -663,6 +663,34 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
   const [selectedEl, setSelectedEl] = useState(null)
   const [sidebarW, setSidebarW] = useState(200)
   const [rightW, setRightW] = useState(340)
+  const [restoringHash, setRestoringHash] = useState(null)
+
+  const restoreVersion = useCallback(async (hash) => {
+    const store = useStore.getState()
+    const { activeProjectId, activeExperimentId: eid, activeTaskId: tid } = store
+    if (!activeProjectId || !eid || !tid) return
+    setRestoringHash(hash)
+    try {
+      const r = await fetch(
+        `/api/projects/${activeProjectId}/experiments/${eid}/tasks/${tid}/git/restore`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hash }) }
+      )
+      if (r.ok) {
+        const data = await r.json()
+        if (data.svg_content) store.updateSvgContent(data.svg_content)
+        store.fetchSvg()
+        store.fetchGitLog()
+        showToast(`已恢复到 ${hash.slice(0, 7)}`)
+        send?.(`[系统] 用户已将图表恢复到 git commit ${hash}，请注意 plot.py 内容已变更`)
+      } else {
+        showToast('恢复失败')
+      }
+    } catch {
+      showToast('恢复失败')
+    } finally {
+      setRestoringHash(null)
+    }
+  }, [send, showToast])
 
   useEffect(() => { fetchGitLog() }, [activeTaskId])
 
@@ -778,45 +806,67 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'history' && (
           <>
-            <SectionHeader num="07" title="历史" />
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              {gitLog.map((c, idx) => (
-                <div key={c.hash} className="flex items-start gap-2 mb-3 group">
-                  <span className="font-mono mt-0.5" style={{ fontSize: 10, color: '#A8A29E', flexShrink: 0 }}>{c.hash}</span>
-                  <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 12, color: '#1C1917' }}>{c.message}</div>
-                    <div className="font-mono flex items-center gap-2" style={{ fontSize: 10, color: '#A8A29E' }}>
-                      <span>{new Date(c.timestamp).toLocaleString('zh')}</span>
-                      {idx > 0 && (
-                        <button
-                          onClick={() => {
-                            const { activeProjectId, activeExperimentId, activeTaskId, fetchSvg: fSvg, fetchGitLog: fLog, updateSvgContent: uSvg } = useStore.getState()
-                            if (!activeProjectId || !activeExperimentId || !activeTaskId) return
-                            fetch(
-                              `/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/git/restore`,
-                              {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ hash: c.hash }),
-                              }
-                            ).then(r => r.json()).then(data => {
-                              if (data.ok) {
-                                if (data.svg_content) uSvg(data.svg_content)
-                                fSvg()
-                                fLog()
-                                send?.(`[系统] 用户已将图表恢复到 git commit ${c.hash}，请注意 plot.py 内容已变更`)
-                              }
-                            })
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition px-1.5 py-0.5 rounded"
-                          style={{ fontSize: 9, color: '#0F766E', border: '1px solid #D6CFC2' }}>
-                          恢复此版本
-                        </button>
+            <SectionHeader num="07" title="历史" subtitle={`${gitLog.length} 个版本`} />
+            <div className="flex-1 overflow-y-auto py-3">
+              {gitLog.length === 0 && (
+                <div className="text-center py-10" style={{ fontSize: 12, color: '#C4BEB7' }}>暂无历史记录</div>
+              )}
+              {gitLog.map((c, idx) => {
+                const isCurrent = idx === 0
+                const isRestoring = restoringHash === c.hash
+                return (
+                  <button
+                    key={c.hash}
+                    disabled={isCurrent || isRestoring}
+                    onClick={() => !isCurrent && restoreVersion(c.hash)}
+                    className="w-full text-left flex items-start gap-3 px-4 py-2.5 transition group"
+                    style={{
+                      cursor: isCurrent ? 'default' : 'pointer',
+                      background: isCurrent ? 'rgba(28,25,23,0.04)' : 'transparent',
+                      opacity: isRestoring ? 0.5 : 1,
+                    }}>
+                    {/* Timeline spine */}
+                    <div className="flex flex-col items-center flex-shrink-0" style={{ paddingTop: 3 }}>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                        background: isCurrent ? '#1C1917' : '#D6CFC2',
+                        border: `2px solid ${isCurrent ? '#1C1917' : '#D6CFC2'}`,
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }} className={!isCurrent ? 'group-hover:!bg-teal-600 group-hover:!border-teal-600' : ''} />
+                      {idx < gitLog.length - 1 && (
+                        <div style={{ width: 1, flex: 1, minHeight: 20, background: '#E7E0D1', margin: '3px 0' }} />
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pb-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono" style={{ fontSize: 9.5, color: '#A8A29E' }}>{c.hash}</span>
+                        {isCurrent && (
+                          <span style={{
+                            fontSize: 9, borderRadius: 3, padding: '1px 5px',
+                            background: '#1C1917', color: '#F5F1EA',
+                          }}>当前</span>
+                        )}
+                      </div>
+                      <div className="mt-0.5" style={{
+                        fontSize: 12, color: '#1C1917',
+                        fontWeight: isCurrent ? 500 : 400,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{c.message}</div>
+                      <div className="font-mono flex items-center justify-between mt-0.5"
+                        style={{ fontSize: 9.5, color: '#A8A29E' }}>
+                        <span>{new Date(c.timestamp).toLocaleString('zh', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        {!isCurrent && (
+                          <span className="opacity-0 group-hover:opacity-100 transition"
+                            style={{ color: '#0F766E' }}>
+                            {isRestoring ? '恢复中…' : '点击恢复 →'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </>
         )}

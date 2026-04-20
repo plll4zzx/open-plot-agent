@@ -69,13 +69,27 @@ export function useAgentChat(provider = 'ollama') {
           }])
           break
 
-        case 'text_delta':
+        case 'think_delta':
           setMessages(prev => {
             const last = prev[prev.length - 1]
-            if (last?.role === 'agent') {
+            if (last?.role === 'thinking') {
               return [...prev.slice(0, -1), { ...last, content: last.content + event.content }]
             }
-            return [...prev, { id: nextId(), role: 'agent', content: event.content }]
+            return [...prev, { id: nextId(), role: 'thinking', content: event.content, complete: false }]
+          })
+          break
+
+        case 'text_delta':
+          setMessages(prev => {
+            // Mark any in-flight thinking block as complete once text starts flowing
+            const marked = prev.map(m =>
+              m.role === 'thinking' && !m.complete ? { ...m, complete: true } : m
+            )
+            const last = marked[marked.length - 1]
+            if (last?.role === 'agent') {
+              return [...marked.slice(0, -1), { ...last, content: last.content + event.content }]
+            }
+            return [...marked, { id: nextId(), role: 'agent', content: event.content }]
           })
           break
 
@@ -100,6 +114,9 @@ export function useAgentChat(provider = 'ollama') {
           break
 
         case 'done':
+          setMessages(prev =>
+            prev.map(m => m.role === 'thinking' && !m.complete ? { ...m, complete: true } : m)
+          )
           setGenerating(false)
           fetchSvg()
           fetchGitLog()

@@ -39,6 +39,15 @@ def _find_title_call(code: str) -> list[tuple[int, str]]:
     return results
 
 
+def _find_suptitle_call(code: str) -> list[tuple[int, str]]:
+    """Find fig.suptitle(...) / plt.suptitle(...) calls."""
+    results = []
+    for i, line in enumerate(code.splitlines()):
+        if re.search(r'\bsuptitle\s*\(', line):
+            results.append((i, line))
+    return results
+
+
 def _find_xlabel_call(code: str) -> list[tuple[int, str]]:
     results = []
     for i, line in enumerate(code.splitlines()):
@@ -85,28 +94,46 @@ def _find_color_in_palette(code: str, index: int) -> tuple[int, int, int] | None
 
 # ── Patchers ────────────────────────────────────────────────────────────
 
-def patch_text(code: str, gid: str, new_text: str) -> PatchResult:
-    """Patch text content for title, xlabel, ylabel."""
+def patch_text(code: str, gid: str, new_text: str, original_value: str | None = None) -> PatchResult:
+    """Patch text content for title/suptitle/xlabel/ylabel (and numbered variants)."""
     lines = code.splitlines()
     patched_lines = []
 
-    if gid == 'title':
+    # Map numbered/variant gids to their canonical form.
+    canonical = gid
+    if gid.startswith('title_'):
+        canonical = 'title'
+    elif gid.startswith('xlabel_'):
+        canonical = 'xlabel'
+    elif gid.startswith('ylabel_'):
+        canonical = 'ylabel'
+
+    if canonical == 'suptitle':
+        targets = _find_suptitle_call(code)
+        setter_re = r'''(suptitle\s*\()(['"])(.*?)\2'''
+    elif canonical == 'title':
         targets = _find_title_call(code)
-    elif gid == 'xlabel':
+        setter_re = r'''(set_title\s*\()(['"])(.*?)\2'''
+    elif canonical == 'xlabel':
         targets = _find_xlabel_call(code)
-    elif gid == 'ylabel':
+        setter_re = r'''(set_xlabel\s*\()(['"])(.*?)\2'''
+    elif canonical == 'ylabel':
         targets = _find_ylabel_call(code)
+        setter_re = r'''(set_ylabel\s*\()(['"])(.*?)\2'''
     else:
         return PatchResult(False, f"Text patching not supported for gid: {gid}")
 
     if not targets:
-        return PatchResult(False, f"Could not find {gid} setter in code")
+        return PatchResult(False, f"Could not find {canonical} setter in code")
 
     for line_no, line in targets:
-        # Replace the first string argument
-        # Handle multi-line strings with \n
+        # When original_value is provided, only patch the line whose current
+        # string argument matches — prevents changing all subplot titles at once.
+        if original_value is not None:
+            if f'"{original_value}"' not in line and f"'{original_value}'" not in line:
+                continue
         new_line = re.sub(
-            r'''(set_(?:title|xlabel|ylabel)\s*\()(['"])(.*?)\2''',
+            setter_re,
             lambda m: f'{m.group(1)}"{new_text}"',
             line, count=1
         )
@@ -190,11 +217,19 @@ def patch_font_size(code: str, gid: str, new_size: float) -> PatchResult:
     lines = code.splitlines()
     patched_lines = []
 
-    if gid == 'title':
-        targets = _find_title_call(code)
-    elif gid == 'xlabel':
+    canonical = gid
+    if gid.startswith('title_'):
+        canonical = 'title'
+    elif gid.startswith('xlabel_'):
+        canonical = 'xlabel'
+    elif gid.startswith('ylabel_'):
+        canonical = 'ylabel'
+
+    if canonical in ('title', 'suptitle'):
+        targets = _find_title_call(code) + _find_suptitle_call(code)
+    elif canonical == 'xlabel':
         targets = _find_xlabel_call(code)
-    elif gid == 'ylabel':
+    elif canonical == 'ylabel':
         targets = _find_ylabel_call(code)
     else:
         return PatchResult(False, f"Font size patching not supported for gid: {gid}")
@@ -335,14 +370,14 @@ def patch_legend_position(code: str, x_frac: float, y_frac: float) -> PatchResul
         # Replace or insert bbox_transform=
         if re.search(r'\bbbox_transform\s*=', new_line):
             new_line = re.sub(
-                r'\bbbox_transform\s*=\s*[A-Za-z_.()]+',
-                'bbox_transform=fig.transFigure',
+                r'\bbbox_transform\s*=\s*[\w.()]+',
+                'bbox_transform=plt.gcf().transFigure',
                 new_line, count=1
             )
         else:
             new_line = re.sub(
                 r'(\.legend\s*\()',
-                r'\1bbox_transform=fig.transFigure, ',
+                r'\1bbox_transform=plt.gcf().transFigure, ',
                 new_line, count=1
             )
 
@@ -366,7 +401,7 @@ def patch_legend_position(code: str, x_frac: float, y_frac: float) -> PatchResul
 
     new_legend_line = (
         f"ax.legend(loc={new_loc}, bbox_to_anchor={new_anchor}, "
-        f"bbox_transform=fig.transFigure)"
+        f"bbox_transform=plt.gcf().transFigure)"
     )
 
     if insert_at == -1:
@@ -426,7 +461,7 @@ def patch_axis_range(code: str, axis: str, lo: float, hi: float) -> PatchResult:
 
 # ── Main dispatch ──────────────────────────────────────────────────────
 
-def apply_patch(code: str, gid: str, prop: str, value: str) -> PatchResult:
+def apply_patch(code: str, gid: str, prop: str, value: str, original_value: str | None = None) -> PatchResult:
     """
     Apply a deterministic patch to plot.py code.
 
@@ -444,7 +479,7 @@ def apply_patch(code: str, gid: str, prop: str, value: str) -> PatchResult:
     if prop == 'fill' or prop == 'color' or prop == 'facecolor':
         return patch_fill_color(code, gid, value)
     elif prop == 'text':
-        return patch_text(code, gid, value)
+        return patch_text(code, gid, value, original_value=original_value)
     elif prop in ('font-size', 'fontsize', 'font_size'):
         return patch_font_size(code, gid, float(value))
     elif prop in ('stroke-width', 'linewidth', 'lw'):

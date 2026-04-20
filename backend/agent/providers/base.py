@@ -28,11 +28,17 @@ class ToolResult:
 
 
 @dataclass
+class ThinkingDelta:
+    content: str
+
+
+@dataclass
 class Done:
     stop_reason: str = "end_turn"
+    full_content: list[dict] | None = None  # Populated by Anthropic when extended thinking is on
 
 
-AgentEvent = TextDelta | ToolCall | ToolResult | Done
+AgentEvent = TextDelta | ThinkingDelta | ToolCall | ToolResult | Done
 
 
 @dataclass
