@@ -434,28 +434,44 @@ class AgentLoop:
 
         if context_notices:
             notice_text = "\n\n".join(context_notices)
-            self.history.append({"role": "user", "content": notice_text})
             # Notify frontend that context was injected
             await send(_ws_event("context_notice", content=notice_text))
-
-        self.history.append({"role": "user", "content": user_message})
+            # Merge notice into the user message — a separate user-role message
+            # would create two consecutive user turns, violating Anthropic's
+            # alternating-role constraint and confusing Ollama models.
+            self.history.append({"role": "user", "content": f"{notice_text}\n\n{user_message}"})
+        else:
+            self.history.append({"role": "user", "content": user_message})
 
         # Reset per-turn counters
         self._visual_retries = 0
 
         try:
-            await self._run_turn_inner(user_message, send)
+            ok = await self._run_turn_inner(user_message, send)
         except asyncio.CancelledError:
             # Roll back any messages appended this turn so the in-memory
             # history stays consistent for the next request.
             del self.history[history_cursor:]
             raise
+        except Exception:
+            # Non-cancellation exception (e.g. LLM API error on consecutive user
+            # messages). Roll back so the next turn starts from a clean state.
+            del self.history[history_cursor:]
+            raise
+
+        if not ok:
+            # Graceful failure (max_tool_rounds, stream ended early).
+            # Roll back the failed turn so the next request doesn't inherit
+            # a dangling user message that would create consecutive user turns.
+            del self.history[history_cursor:]
+            self._save_history()
 
     async def _run_turn_inner(
         self,
         user_message: str,
         send: Callable[[str], Coroutine],
-    ) -> None:
+    ) -> bool:
+        """Returns True on success (Done received), False on graceful failure."""
         # ── Context compression ───────────────────────────────────────────
         task_md = self.task_dir / "TASK.md"
         self.history = await maybe_compress(
@@ -513,12 +529,12 @@ class AgentLoop:
                         self._save_history()
                         self._schedule_commit(f"agent: turn – {user_message[:60]}")
                         await send(_ws_event("done"))
-                        return
+                        return True
 
             if not pending_tool_calls:
                 # Stream ended without a Done event or tool calls — surface the issue
                 await send(_ws_event("error", message="模型响应流异常结束（未收到完整响应），请重试。"))
-                return
+                return False
 
             # Execute all pending tool calls, collecting results
             from agent.tools.base import missing_backend_dep_error
@@ -661,9 +677,9 @@ class AgentLoop:
 
             tool_rounds += 1
 
-        # Hit round limit
+        # Hit round limit — history rollback handled by run_turn
         await send(_ws_event("error", message=f"已达到最大工具调用轮次（{max_tool_rounds} 轮）。如需更多轮次，请在设置中调整 max_tool_rounds。"))
-        self._save_history()
+        return False
 
     # ── Git debounce ───────────────────────────────────────────────────────
 
@@ -678,3 +694,4 @@ class AgentLoop:
             asyncio.ensure_future(gm.auto_commit(message))
 
         self._commit_handle = loop.call_later(1.2, _do_commit)
+

@@ -40,7 +40,10 @@
       "Bash(gh api *)",
       "Bash(sed -n '179,195p' /Users/s3000484/python/open-plot-agent/backend/agent/tools/data/recommend_charts.py)",
       "Bash(sed -n '9,18p' /Users/s3000484/python/open-plot-agent/backend/agent/tools/rag/search_charts.py)",
-      "Bash(sed -n '9,20p' /Users/s3000484/python/open-plot-agent/backend/agent/tools/chart/patch_config_prop.py)"
+      "Bash(sed -n '9,20p' /Users/s3000484/python/open-plot-agent/backend/agent/tools/chart/patch_config_prop.py)",
+      "Bash(awk '{print \"pid=\"$2, \"running since=\"$10}')",
+      "Bash(/Users/s3000484/open-plot-agent/projects/demo-retail/.venv/bin/python plot.py)",
+      "Bash(/Users/s3000484/open-plot-agent/projects/demo-retail/.venv/bin/python -c ' *)"
     ]
   }
 }
