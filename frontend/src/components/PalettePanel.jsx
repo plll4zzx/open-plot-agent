@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Check, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 
 const BUILT_IN = [
   { name: 'Okabe-Ito', colors: ['#E69F00','#56B4E9','#009E73','#F0E442','#0072B2','#D55E00','#CC79A7'] },
@@ -58,10 +59,11 @@ function applyPaletteToSvg(svgContent, palette) {
 export async function applyPaletteDirect({
   svgContent, palette, activeProjectId, activeExperimentId, activeTaskId,
   updateSvgContent, fetchGitLog, onNotice,
+  msgs = {},
 }) {
   const oldColors = extractCurrentColors(svgContent)
   if (!oldColors.length) {
-    onNotice?.({ ok: false, text: '未检测到可替换的颜色' })
+    onNotice?.({ ok: false, text: msgs.noColors ?? '未检测到可替换的颜色' })
     return
   }
   const newColors = oldColors.map((_, i) => palette[i % palette.length])
@@ -82,15 +84,15 @@ export async function applyPaletteDirect({
     )
     if (!r.ok) {
       const detail = await r.json().catch(() => ({}))
-      onNotice?.({ ok: false, text: detail.detail || '写回 plot.py 失败' })
+      onNotice?.({ ok: false, text: detail.detail || (msgs.writeFailed ?? '写回 plot.py 失败') })
       return
     }
     const data = await r.json()
     if (data.svg_content) updateSvgContent(data.svg_content)
     fetchGitLog?.()
-    onNotice?.({ ok: true, text: `已替换 ${data.replacements} 处颜色` })
+    onNotice?.({ ok: true, text: msgs.replaced ? msgs.replaced(data.replacements) : `已替换 ${data.replacements} 处颜色` })
   } catch {
-    onNotice?.({ ok: false, text: '无法连接到后端' })
+    onNotice?.({ ok: false, text: msgs.backendError ?? '无法连接到后端' })
   }
 }
 
@@ -99,6 +101,7 @@ export function PalettePanel() {
     svgContent, updateSvgContent, fetchGitLog,
     activeProjectId, activeExperimentId, activeTaskId,
   } = useStore()
+  const t = useT()
   const [custom, setCustom] = useState([])
   const [applied, setApplied] = useState(null)
   const [notice, setNotice] = useState(null)
@@ -113,6 +116,12 @@ export function PalettePanel() {
         setNotice(n)
         setTimeout(() => setNotice(null), 2500)
       },
+      msgs: {
+        noColors: t('noColorsDetected'),
+        writeFailed: t('paletteWriteFailed'),
+        replaced: (n) => t('colorsReplaced', { n }),
+        backendError: t('backendError'),
+      },
     })
     setTimeout(() => setApplied(null), 1500)
   }
@@ -120,7 +129,7 @@ export function PalettePanel() {
   const saveCurrent = () => {
     const colors = extractCurrentColors(svgContent)
     if (!colors.length) return
-    const name = `自定义 ${custom.length + 1}`
+    const name = t('customPalette', { n: custom.length + 1 })
     setCustom(prev => [...prev, { name, colors }])
   }
 
@@ -135,12 +144,12 @@ export function PalettePanel() {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#7A99AE' }}>
-              当前配色
+              {t('currentPalette')}
             </span>
             <button onClick={saveCurrent}
               className="flex items-center gap-1 px-2 py-0.5 rounded"
               style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
-              <Plus size={9} />保存
+              <Plus size={9} />{t('save')}
             </button>
           </div>
           <div className="flex gap-1 p-2 rounded-lg" style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
@@ -152,7 +161,7 @@ export function PalettePanel() {
       )}
 
       <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', color: '#7A99AE', marginBottom: 8 }}>
-        预设方案
+        {t('presetSchemes')}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -199,7 +208,7 @@ export function PalettePanel() {
 
       {!svgContent && (
         <div style={{ fontSize: 12, color: '#9DB5C7', textAlign: 'center', marginTop: 32 }}>
-          生成图表后才能切换配色
+          {t('generateChartFirst')}
         </div>
       )}
     </div>

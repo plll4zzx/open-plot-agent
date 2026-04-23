@@ -141,9 +141,10 @@ def patch_prop(code: str, key: str, new_raw_value: str) -> tuple[bool, str, str]
         return False, code, f"Invalid Python literal for {key!r}: {new_raw_value!r} — {exc}"
 
     var_name = key.upper()
-    pattern = re.compile(rf'^({re.escape(var_name)}\s*=\s*).*$', re.MULTILINE)
+    pattern = re.compile(rf'^{re.escape(var_name)}\s*=.*$', re.MULTILINE)
     replacement = f'{var_name} = {new_raw_value}'
-    patched, n = pattern.subn(replacement, code, count=1)
+    # Use a callable replacement so re.sub doesn't interpret backslashes in the value
+    patched, n = pattern.subn(lambda m: replacement, code, count=1)
 
     if n == 0:
         return False, code, f"Variable {var_name} not found in plot.py"

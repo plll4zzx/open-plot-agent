@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Save, RefreshCw, FileText, BookOpen } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 
 const API = ''
 
 // ── Memory file editor ──────────────────────────────────────
 
-function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, taskId }) {
+function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, taskId, refreshKey }) {
   const [content, setContent] = useState('')
   const [savedContent, setSavedContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const t = useT()
 
   const basePath = taskId
     ? `/api/projects/${projectId}/experiments/${experimentId}/tasks/${taskId}/files`
@@ -46,13 +48,13 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
         setSavedContent('')
       }
     } catch (e) {
-      setError('加载失败')
+      setError(t('loadFailed'))
     } finally {
       setLoading(false)
     }
   }, [projectId, experimentId, taskId, filePath])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshKey])
 
   const save = async () => {
     if (!projectId || !experimentId) return
@@ -75,7 +77,7 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
         setSavedContent(content)
       }
     } catch {
-      setError('保存失败')
+      setError(t('saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -94,11 +96,11 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
             {label}
           </span>
           {isModified && (
-            <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+            <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>{t('unsaved')}</span>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={load} title="刷新"
+          <button onClick={load} title={t('refresh')}
             className="w-5 h-5 flex items-center justify-center rounded"
             style={{ color: '#7A99AE', border: '1px solid #CFE0ED' }}>
             <RefreshCw size={9} />
@@ -108,7 +110,7 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
               className="flex items-center gap-1 px-1.5 py-0.5 rounded"
               style={{ fontSize: 10, border: '1px solid #BDCFDF', color: '#1F3547' }}>
               <Save size={9} />
-              {saving ? '…' : '保存'}
+              {saving ? '…' : t('save')}
             </button>
           )}
         </div>
@@ -117,7 +119,7 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
       {/* Content */}
       {loading ? (
         <div className="flex-1 flex items-center justify-center" style={{ color: '#7A99AE', fontSize: 11 }}>
-          加载中…
+          {t('loading')}
         </div>
       ) : error ? (
         <div className="flex-1 flex items-center justify-center" style={{ color: '#DC2626', fontSize: 11 }}>
@@ -151,7 +153,8 @@ function MemoryFile({ label, icon: Icon, filePath, projectId, experimentId, task
 // ── Main Memory Panel ────────────────────────────────────────
 
 export function MemoryPanel() {
-  const { activeProjectId, activeExperimentId, activeTaskId } = useStore()
+  const { activeProjectId, activeExperimentId, activeTaskId, agentTurnCount } = useStore()
+  const t = useT()
   const [tab, setTab] = useState('task')
 
   if (!activeProjectId || !activeExperimentId) {
@@ -160,8 +163,8 @@ export function MemoryPanel() {
         style={{ color: '#9DB5C7', fontSize: 12, textAlign: 'center' }}>
         <div>
           <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-          <div>选择一个实验或任务</div>
-          <div style={{ marginTop: 4, fontSize: 11 }}>Memory 会记录 agent 和用户的关键决策</div>
+          <div>{t('selectExpOrTask')}</div>
+          <div style={{ marginTop: 4, fontSize: 11 }}>{t('memoryDesc')}</div>
         </div>
       </div>
     )
@@ -180,7 +183,7 @@ export function MemoryPanel() {
               color: tab === 'task' ? '#1A2B3C' : '#7A99AE',
               borderBottom: tab === 'task' ? '2px solid #7C3AED' : '2px solid transparent',
             }}>
-            Task 记忆
+            {t('taskMemory')}
           </button>
         )}
         <button onClick={() => setTab('experiment')}
@@ -191,7 +194,7 @@ export function MemoryPanel() {
             color: tab === 'experiment' ? '#1A2B3C' : '#7A99AE',
             borderBottom: tab === 'experiment' ? '2px solid #7C3AED' : '2px solid transparent',
           }}>
-          Experiment 记忆
+          {t('experimentMemory')}
         </button>
       </div>
 
@@ -205,6 +208,7 @@ export function MemoryPanel() {
             projectId={activeProjectId}
             experimentId={activeExperimentId}
             taskId={activeTaskId}
+            refreshKey={agentTurnCount}
           />
         ) : (
           <MemoryFile
@@ -214,6 +218,7 @@ export function MemoryPanel() {
             projectId={activeProjectId}
             experimentId={activeExperimentId}
             taskId={null}
+            refreshKey={agentTurnCount}
           />
         )}
       </div>
@@ -221,7 +226,7 @@ export function MemoryPanel() {
       {/* Info footer */}
       <div className="px-3 py-2 border-t flex-shrink-0"
         style={{ borderColor: '#CFE0ED', fontSize: 10, color: '#7A99AE', lineHeight: 1.5 }}>
-        Agent 对话摘要会自动写入 Task 记忆。你也可以手动记录偏好和决策。
+        {t('memoryFooter')}
       </div>
     </div>
   )

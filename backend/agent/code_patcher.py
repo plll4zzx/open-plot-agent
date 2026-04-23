@@ -14,6 +14,7 @@ The patcher reads plot.py, applies regex replacements, writes it back,
 and re-executes to produce a new SVG.
 """
 
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -130,11 +131,16 @@ def patch_text(code: str, gid: str, new_text: str, original_value: str | None = 
         # When original_value is provided, only patch the line whose current
         # string argument matches — prevents changing all subplot titles at once.
         if original_value is not None:
-            if f'"{original_value}"' not in line and f"'{original_value}'" not in line:
+            if original_value not in line:
                 continue
+        # Use json.dumps to produce a properly-escaped Python string literal.
+        # This handles backslashes in LaTeX strings like "$\alpha$" correctly:
+        # json.dumps("$\alpha$") → '"$\\alpha$"' which Python reads as "$\alpha$"
+        # and matplotlib renders as LaTeX.
+        escaped = json.dumps(new_text)
         new_line = re.sub(
             setter_re,
-            lambda m: f'{m.group(1)}"{new_text}"',
+            lambda m, _esc=escaped: m.group(1) + _esc,
             line, count=1
         )
         if new_line != line:
@@ -361,7 +367,7 @@ def patch_legend_position(code: str, x_frac: float, y_frac: float) -> PatchResul
         # Replace or insert loc=
         if re.search(r'\bloc\s*=', new_line):
             new_line = re.sub(
-                r"\bloc\s*=\s*([\"'][^\"']+[\"']|\d+|\([^\)]+\))",
+                r"\bloc\s*=\s*([\"'][^\"']+[\"']|\d+|\([^\)]+\)|[A-Za-z_]\w*)",
                 f"loc={new_loc}",
                 new_line, count=1
             )

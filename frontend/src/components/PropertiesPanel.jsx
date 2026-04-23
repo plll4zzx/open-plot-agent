@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '../store'
+import { useT, PROP_KEY_MAP, GROUP_KEY_MAP } from '../i18n'
 
 // ── Grouping metadata ──────────────────────────────────────────────────────
 
@@ -38,49 +39,6 @@ const GROUP_MAP = {
 
 const GROUP_ORDER = ['layout', 'text', 'typography', 'color', 'chart', 'axes', 'legend', 'other']
 
-const GROUP_LABELS = {
-  layout:     '布局',
-  text:       '文字',
-  typography: '字号',
-  color:      '颜色',
-  chart:      '图表',
-  axes:       '坐标轴',
-  legend:     '图例',
-  other:      '其他',
-}
-
-const PROP_LABELS = {
-  figsize:       '图形大小',
-  title:         '标题',
-  xlabel:        'X 轴标签',
-  ylabel:        'Y 轴标签',
-  suptitle:      '总标题',
-  title_size:    '标题字号',
-  label_size:    '轴标签字号',
-  tick_size:     '刻度字号',
-  font_size:     '全局字号',
-  palette:       '颜色方案',
-  bar_alpha:     '柱透明度',
-  bar_width:     '柱宽',
-  line_width:    '线宽',
-  line_style:    '线型',
-  marker_size:   '标记大小',
-  scatter_alpha: '散点透明度',
-  violin_alpha:  '小提琴透明度',
-  fill_alpha:    '填充透明度',
-  cap_size:      '误差线端宽',
-  error_width:   '误差线宽',
-  heatmap_cmap:  '热图色谱',
-  grid:          '网格线',
-  grid_alpha:    '网格透明度',
-  xlim:          'X 轴范围',
-  ylim:          'Y 轴范围',
-  xscale:        'X 轴刻度',
-  yscale:        'Y 轴刻度',
-  legend_loc:    '图例位置',
-  legend_size:   '图例字号',
-  legend_alpha:  '图例透明度',
-}
 
 // ── Python value serialization ─────────────────────────────────────────────
 
@@ -104,10 +62,11 @@ function toPython(type, value) {
 // ── Shared toggle switch ───────────────────────────────────────────────────
 
 function PropToggle({ enabled, onToggle }) {
+  const t = useT()
   return (
     <button
       onClick={e => { e.stopPropagation(); onToggle() }}
-      title={enabled ? '点击关闭此属性' : '点击启用此属性'}
+      title={enabled ? t('propToggleDisable') : t('propToggleEnable')}
       style={{
         width: 28, height: 16, borderRadius: 8, flexShrink: 0,
         background: enabled ? '#1A7DC4' : '#CFE0ED',
@@ -128,7 +87,9 @@ function PropToggle({ enabled, onToggle }) {
 // ── Shared row wrapper ─────────────────────────────────────────────────────
 
 function PropRow({ propKey, saving, error, enabled = true, onToggle, showToggle = true, children }) {
-  const label = PROP_LABELS[propKey] || propKey
+  const t = useT()
+  const labelKey = PROP_KEY_MAP[propKey]
+  const label = labelKey ? t(labelKey) : propKey
   return (
     <div className="px-4 py-2.5 border-b"
       style={{ borderColor: 'rgba(207,224,237,0.5)', opacity: enabled ? 1 : 0.55 }}>
@@ -144,7 +105,7 @@ function PropRow({ propKey, saving, error, enabled = true, onToggle, showToggle 
         <div className="flex items-center gap-2">
           {saving && (
             <span style={{ fontSize: 9.5, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
-              保存中…
+              {t('propSaving')}
             </span>
           )}
           {showToggle && (
@@ -279,6 +240,7 @@ function StringProp({ propKey, prop, onSave }) {
 // ── Bool toggle ────────────────────────────────────────────────────────────
 
 function BoolProp({ propKey, prop, onSave }) {
+  const t = useT()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [local, setLocal] = useState(Boolean(prop.value))
@@ -314,7 +276,7 @@ function BoolProp({ propKey, prop, onSave }) {
           }} />
         </div>
         <span style={{ fontSize: 12, color: local ? '#1A2B3C' : '#7A99AE' }}>
-          {local ? '开' : '关'}
+          {local ? t('on') : t('off')}
         </span>
       </button>
     </PropRow>
@@ -474,6 +436,7 @@ function Tuple2fProp({ propKey, prop, onSave }) {
 // ── Optional range (None | (lo, hi)) ──────────────────────────────────────
 
 function Tuple2fOptProp({ propKey, prop, onSave }) {
+  const t = useT()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [enabled, setEnabled] = useState(prop.value != null)
@@ -524,7 +487,7 @@ function Tuple2fOptProp({ propKey, prop, onSave }) {
             />
           </>
         ) : (
-          <span style={{ fontSize: 11, color: '#9DB5C7' }}>自动</span>
+          <span style={{ fontSize: 11, color: '#9DB5C7' }}>{t('auto')}</span>
         )}
       </div>
     </PropRow>
@@ -678,6 +641,7 @@ function EmptyState({ children }) {
 // ── Main panel ─────────────────────────────────────────────────────────────
 
 export function PropertiesPanel() {
+  const t = useT()
   const {
     activeProjectId, activeExperimentId, activeTaskId,
     svgContent, updateSvgContent, fetchGitLog,
@@ -744,7 +708,7 @@ export function PropertiesPanel() {
   if (!activeTaskId) {
     return (
       <div className="flex flex-col h-full">
-        <EmptyState>选择一个任务查看属性</EmptyState>
+        <EmptyState>{t('selectTaskForProps')}</EmptyState>
       </div>
     )
   }
@@ -752,7 +716,7 @@ export function PropertiesPanel() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <EmptyState>加载中…</EmptyState>
+        <EmptyState>{t('loading')}</EmptyState>
       </div>
     )
   }
@@ -761,9 +725,9 @@ export function PropertiesPanel() {
     return (
       <div className="flex flex-col h-full">
         <EmptyState>
-          还没有图表<br />
+          {t('noChartYet')}<br />
           <span style={{ fontSize: 11, color: '#BDCFDF', marginTop: 4, display: 'block' }}>
-            让 Agent 生成图表后，<br />所有可编辑属性会出现在这里
+            {t('noChartDesc')}
           </span>
         </EmptyState>
       </div>
@@ -782,7 +746,7 @@ export function PropertiesPanel() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {GROUP_ORDER.filter(g => groups[g]).map(g => (
-        <GroupSection key={g} label={GROUP_LABELS[g]}>
+        <GroupSection key={g} label={t(GROUP_KEY_MAP[g] || g)}>
           {groups[g].map(([key, prop]) => (
             <PropControl key={key} propKey={key} prop={prop} onSave={patchProp} />
           ))}

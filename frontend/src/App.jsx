@@ -5,6 +5,7 @@ import {
   GitBranch, Clock, Check, ChevronDown, Pencil, Palette, Square, SlidersHorizontal,
 } from 'lucide-react'
 import { useStore } from './store'
+import { useT } from './i18n'
 import { useAgentChat } from './hooks/useAgentChat'
 import { ChatPanel } from './components/ChatPanel'
 import { SvgPreview } from './components/SvgPreview'
@@ -35,10 +36,11 @@ function SectionHeader({ num, title, subtitle, right }) {
 }
 
 function GitStatusBadge({ status }) {
+  const t = useT()
   const cfg = {
-    saved:   { color: '#1A7DC4', label: '已保存' },
-    saving:  { color: '#1668A8', label: '保存中…' },
-    pending: { color: '#7A99AE', label: '等待提交' },
+    saved:   { color: '#1A7DC4', label: t('gitSaved') },
+    saving:  { color: '#1668A8', label: t('gitSaving') },
+    pending: { color: '#7A99AE', label: t('gitPending') },
   }[status] ?? { color: '#7A99AE', label: status }
   return (
     <span className="font-mono flex items-center gap-1"
@@ -57,10 +59,34 @@ function Toast({ text }) {
   )
 }
 
+// ── Language toggle ──────────────────────────────────────────
+
+function LangToggle() {
+  const { lang, setLang } = useStore()
+  return (
+    <div className="flex items-center rounded-md p-0.5" style={{ background: '#CFE0ED' }}>
+      {[['zh', '中'], ['en', 'EN']].map(([l, label]) => (
+        <button key={l} onClick={() => setLang(l)}
+          className="px-2 py-0.5 rounded transition"
+          style={{
+            fontSize: 11,
+            fontFamily: 'JetBrains Mono, monospace',
+            background: lang === l ? '#FFFFFF' : 'transparent',
+            color: lang === l ? '#1A2B3C' : '#4A6478',
+            fontWeight: lang === l ? 600 : 400,
+          }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── Dashboard ────────────────────────────────────────────────
 
 function DashboardView({ onOpen, onNew }) {
   const { projects, fetchProjects, projectsLoading } = useStore()
+  const t = useT()
   const [loadingDemo, setLoadingDemo] = useState(false)
 
   useEffect(() => { fetchProjects() }, [])
@@ -88,18 +114,18 @@ function DashboardView({ onOpen, onNew }) {
               学术图表 <em style={{ fontStyle: 'italic', fontWeight: 500 }}>工作室</em>
             </h1>
             <p className="mt-3" style={{ fontSize: 14, color: '#2E4A5E' }}>
-              用 matplotlib + PGF 输出投稿级 PDF。每次编辑 git 自动留痕。
+              {t('dashboardSubtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={loadDemo} disabled={loadingDemo}
               className="flex items-center gap-2 px-4 py-2.5 rounded-md"
               style={{ fontSize: 13, border: '1px solid #BDCFDF', color: '#1F3547', background: loadingDemo ? '#EBF4FA' : 'transparent' }}>
-              {loadingDemo ? '加载中…' : '加载 Demo'}
+              {loadingDemo ? t('loading') : t('loadDemo')}
             </button>
             <button onClick={onNew} className="flex items-center gap-2 px-4 py-2.5 rounded-md font-medium"
               style={{ fontSize: 13, background: '#1A2B3C', color: '#EBF4FA' }}>
-              <Plus size={14} />新建项目
+              <Plus size={14} />{t('newProject')}
             </button>
           </div>
         </div>
@@ -107,13 +133,13 @@ function DashboardView({ onOpen, onNew }) {
         <div className="mb-6 flex items-center gap-2 rounded-md px-3 py-2"
           style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
           <Search size={14} style={{ color: '#7A99AE' }} />
-          <input placeholder="搜索项目…" className="flex-1 outline-none bg-transparent" style={{ fontSize: 13 }} />
+          <input placeholder={t('searchProjects')} className="flex-1 outline-none bg-transparent" style={{ fontSize: 13 }} />
         </div>
 
         {projectsLoading ? (
-          <div className="text-center py-20 pulse-soft" style={{ fontSize: 13, color: '#7A99AE' }}>加载中…</div>
+          <div className="text-center py-20 pulse-soft" style={{ fontSize: 13, color: '#7A99AE' }}>{t('loading')}</div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20" style={{ fontSize: 13, color: '#7A99AE' }}>还没有项目，点击新建开始</div>
+          <div className="text-center py-20" style={{ fontSize: 13, color: '#7A99AE' }}>{t('noProjects')}</div>
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
             {projects.map(p => (
@@ -128,7 +154,7 @@ function DashboardView({ onOpen, onNew }) {
               className="rounded-xl flex flex-col items-center justify-center gap-2 py-12"
               style={{ border: '1.5px dashed #BDCFDF', background: 'rgba(255,255,255,0.3)' }}>
               <Plus size={18} style={{ color: '#4A6478' }} />
-              <span style={{ fontSize: 13, fontFamily: 'Fraunces, serif', fontStyle: 'italic', color: '#1F3547' }}>新建项目</span>
+              <span style={{ fontSize: 13, fontFamily: 'Fraunces, serif', fontStyle: 'italic', color: '#1F3547' }}>{t('newProject')}</span>
             </button>
           </div>
         )}
@@ -143,6 +169,7 @@ function NewProjectModal({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [desc, setDesc] = useState('')
   const { createProject } = useStore()
+  const t = useT()
 
   const submit = async () => {
     if (!name.trim()) return
@@ -155,20 +182,20 @@ function NewProjectModal({ onClose, onCreate }) {
       style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
         style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建项目</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>{t('newProjectTitle')}</h3>
         <input value={name} onChange={e => setName(e.target.value)}
-          placeholder="项目名称（如 Nature 2026）"
+          placeholder={t('newProjectNamePh')}
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
           style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         <textarea value={desc} onChange={e => setDesc(e.target.value)}
-          placeholder="描述（可选）" rows={2}
+          placeholder={t('newProjectDescPh')} rows={2}
           className="w-full rounded-md px-3 py-2 outline-none resize-none mb-4"
           style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>{t('cancel')}</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>{t('create')}</button>
         </div>
       </div>
     </div>
@@ -179,6 +206,7 @@ function NewExperimentModal({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [copyFrom, setCopyFrom] = useState('')
   const { createExperiment, experiments } = useStore()
+  const t = useT()
 
   const submit = async () => {
     if (!name.trim()) return
@@ -191,18 +219,18 @@ function NewExperimentModal({ onClose, onCreate }) {
       style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
         style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建实验</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>{t('newExperimentTitle')}</h3>
         <input value={name} onChange={e => setName(e.target.value)}
-          placeholder="实验名称（如 exp-baseline）"
+          placeholder={t('newExperimentNamePh')}
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
           style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         {experiments.length > 0 && (
           <div className="mb-4">
-            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>复制原始数据自（可选）</label>
+            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>{t('copyDataFrom')}</label>
             <select value={copyFrom} onChange={e => setCopyFrom(e.target.value)}
               className="w-full rounded-md px-3 py-2 outline-none"
               style={{ fontSize: 12.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
-              <option value="">不复制</option>
+              <option value="">{t('noCopy')}</option>
               {experiments.map(e => (
                 <option key={e.experiment_id} value={e.experiment_id}>{e.experiment_id}</option>
               ))}
@@ -211,9 +239,9 @@ function NewExperimentModal({ onClose, onCreate }) {
         )}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>{t('cancel')}</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>{t('create')}</button>
         </div>
       </div>
     </div>
@@ -224,6 +252,7 @@ function NewTaskModal({ onClose, onCreate }) {
   const [name, setName] = useState('')
   const [copyFrom, setCopyFrom] = useState('')
   const { createTask, tasks } = useStore()
+  const t = useT()
 
   const submit = async () => {
     if (!name.trim()) return
@@ -236,18 +265,18 @@ function NewTaskModal({ onClose, onCreate }) {
       style={{ background: 'rgba(26,43,60,0.4)', backdropFilter: 'blur(6px)' }}>
       <div className="rounded-xl p-6 w-full max-w-sm mx-6"
         style={{ background: '#F0F7FC', border: '1px solid #CFE0ED' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>新建任务</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', marginBottom: 16 }}>{t('newTaskTitle')}</h3>
         <input value={name} onChange={e => setName(e.target.value)}
-          placeholder="任务名称（如 Fig.2 时间演化）"
+          placeholder={t('newTaskNamePh')}
           className="w-full rounded-md px-3 py-2 outline-none mb-3"
           style={{ fontSize: 13, border: '1px solid #BDCFDF', background: '#FFFFFF' }} />
         {tasks.length > 0 && (
           <div className="mb-4">
-            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>复制数据/脚本自（可选）</label>
+            <label style={{ fontSize: 11, color: '#4A6478', display: 'block', marginBottom: 4 }}>{t('copyScriptFrom')}</label>
             <select value={copyFrom} onChange={e => setCopyFrom(e.target.value)}
               className="w-full rounded-md px-3 py-2 outline-none"
               style={{ fontSize: 12.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }}>
-              <option value="">不复制</option>
+              <option value="">{t('noCopy')}</option>
               {tasks.map(t => (
                 <option key={t.task_id} value={t.task_id}>{t.task_id}</option>
               ))}
@@ -256,9 +285,9 @@ function NewTaskModal({ onClose, onCreate }) {
         )}
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2 rounded-md"
-            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>取消</button>
+            style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>{t('cancel')}</button>
           <button onClick={submit} className="flex-1 py-2 rounded-md font-medium"
-            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>创建</button>
+            style={{ fontSize: 12.5, background: '#1A2B3C', color: '#EBF4FA' }}>{t('create')}</button>
         </div>
       </div>
     </div>
@@ -273,11 +302,10 @@ function Sidebar({ onNewExperiment, onNewTask }) {
     experiments, tasks,
     setActive, setActiveExperiment, setActiveTask,
   } = useStore()
+  const t = useT()
 
-  // Track which experiments are expanded in the tree
   const [expanded, setExpanded] = useState({})
 
-  // Auto-expand active experiment
   useEffect(() => {
     if (activeExperimentId) {
       setExpanded(prev => ({ ...prev, [activeExperimentId]: true }))
@@ -285,13 +313,11 @@ function Sidebar({ onNewExperiment, onNewTask }) {
   }, [activeExperimentId])
 
   const clickExperiment = async (eid) => {
-    // Always navigate to experiment view (clears any active task)
     if (eid !== activeExperimentId) {
       await setActiveExperiment(eid)
     } else {
-      setActiveTask(null)  // same experiment: just clear task to show ExperimentPanel
+      setActiveTask(null)
     }
-    // Always expand (don't collapse on click — use chevron for that)
     setExpanded(prev => ({ ...prev, [eid]: true }))
   }
 
@@ -306,13 +332,11 @@ function Sidebar({ onNewExperiment, onNewTask }) {
 
   return (
     <aside className="flex flex-col border-r overflow-hidden" style={{ borderColor: '#CFE0ED' }}>
-      {/* Project name */}
       <div className="px-4 py-3 border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
         <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.15em', color: '#7A99AE' }}>PROJECT</div>
         <div style={{ fontSize: 14, fontWeight: 500, fontFamily: 'Fraunces, serif', marginTop: 2 }}>{activeProjectId}</div>
       </div>
 
-      {/* Tree */}
       <div className="flex-1 overflow-y-auto py-1">
         {experiments.map(exp => {
           const isActiveExp = exp.experiment_id === activeExperimentId
@@ -321,7 +345,6 @@ function Sidebar({ onNewExperiment, onNewTask }) {
 
           return (
             <div key={exp.experiment_id}>
-              {/* Experiment row */}
               <div className="flex items-center group"
                 style={{ background: isActiveExp && !activeTaskId ? 'rgba(26,43,60,0.05)' : 'transparent' }}>
                 <button
@@ -352,34 +375,32 @@ function Sidebar({ onNewExperiment, onNewTask }) {
                     {exp.experiment_id}
                   </span>
                 </button>
-                {/* Inline + button on hover */}
                 <button
                   onClick={async (e) => { e.stopPropagation(); await setActiveExperiment(exp.experiment_id); onNewTask() }}
-                  title="新建任务"
+                  title={t('newTask')}
                   className="opacity-0 group-hover:opacity-100 mr-2 w-5 h-5 flex items-center justify-center rounded transition"
                   style={{ color: '#7A99AE', border: '1px solid #BDCFDF', flexShrink: 0 }}>
                   <Plus size={9} />
                 </button>
               </div>
 
-              {/* Task rows (shown when expanded) */}
-              {isOpen && isActiveExp && expTasks.map(t => (
-                <button key={t.task_id}
-                  onClick={() => clickTask(exp.experiment_id, t.task_id)}
+              {isOpen && isActiveExp && expTasks.map(tk => (
+                <button key={tk.task_id}
+                  onClick={() => clickTask(exp.experiment_id, tk.task_id)}
                   className="w-full text-left flex items-center gap-2 py-2 transition"
                   style={{
                     paddingLeft: 24,
                     paddingRight: 12,
                     fontSize: 12,
-                    background: t.task_id === activeTaskId ? 'rgba(26,43,60,0.06)' : 'transparent',
-                    fontWeight: t.task_id === activeTaskId ? 500 : 400,
-                    color: t.task_id === activeTaskId ? '#1A2B3C' : '#2E4A5E',
+                    background: tk.task_id === activeTaskId ? 'rgba(26,43,60,0.06)' : 'transparent',
+                    fontWeight: tk.task_id === activeTaskId ? 500 : 400,
+                    color: tk.task_id === activeTaskId ? '#1A2B3C' : '#2E4A5E',
                   }}>
-                  <span style={{ fontSize: 8, color: t.has_plot ? '#1A7DC4' : '#9DB5C7', flexShrink: 0 }}>
-                    {t.has_plot ? '●' : '○'}
+                  <span style={{ fontSize: 8, color: tk.has_plot ? '#1A7DC4' : '#9DB5C7', flexShrink: 0 }}>
+                    {tk.has_plot ? '●' : '○'}
                   </span>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.task_id}
+                    {tk.task_id}
                   </span>
                 </button>
               ))}
@@ -389,17 +410,16 @@ function Sidebar({ onNewExperiment, onNewTask }) {
 
         {experiments.length === 0 && (
           <div className="px-4 py-3 text-center" style={{ fontSize: 12, color: '#9DB5C7' }}>
-            还没有实验
+            {t('noExperiments')}
           </div>
         )}
       </div>
 
-      {/* Bottom actions */}
       <div className="px-3 py-3 border-t flex-shrink-0 flex gap-2" style={{ borderColor: '#CFE0ED' }}>
         <button onClick={onNewExperiment}
           className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md"
           style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
-          <Plus size={11} />新建实验
+          <Plus size={11} />{t('newExperiment')}
         </button>
       </div>
     </aside>
@@ -407,12 +427,6 @@ function Sidebar({ onNewExperiment, onNewTask }) {
 }
 
 // ── Task main area ────────────────────────────────────────────
-
-const TASK_TABS = [
-  { id: 'processed', label: 'Processed' },
-  { id: 'script',    label: 'Script' },
-  { id: 'preview',   label: '预览' },
-]
 
 const PALETTES = [
   { name: 'Okabe-Ito', colors: ['#E69F00', '#56B4E9', '#009E73', '#F0E442', '#0072B2'] },
@@ -423,12 +437,19 @@ const PALETTES = [
 
 function TaskMainArea({ showToast, generating, send, onElementClick, onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, gitLog, gitStatus, fetchSvg, fetchGitLog, updateSvgContent } = useStore()
+  const t = useT()
   const [tab, setTab] = useState('preview')
   const [showBorders, setShowBorders] = useState(true)
   const [pdfName, setPdfName] = useState('')
   const [showPdfBar, setShowPdfBar] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
   const [restoringHash, setRestoringHash] = useState(null)
+
+  const TASK_TABS = [
+    { id: 'processed', label: 'Processed' },
+    { id: 'script',    label: 'Script' },
+    { id: 'preview',   label: t('previewTab') },
+  ]
 
   useEffect(() => {
     if (activeProjectId && activeExperimentId && activeTaskId) {
@@ -442,7 +463,7 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
       const r = await fetch(
         `/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/chart/export-pdf`
       )
-      if (!r.ok) { showToast('PDF 生成失败'); return }
+      if (!r.ok) { showToast(t('pdfFailed')); return }
       const blob = await r.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -471,25 +492,24 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
         if (data.svg_content) updateSvgContent(data.svg_content)
         fetchSvg()
         fetchGitLog()
-        showToast(`已恢复到 ${hash}`)
+        showToast(t('restoredTo', { hash }))
       } else {
-        showToast('恢复失败')
+        showToast(t('restoreFailed'))
       }
     } catch {
-      showToast('恢复失败')
+      showToast(t('restoreFailed'))
     } finally {
       setRestoringHash(null)
     }
   }
 
   const handleTableReady = () => {
-    showToast('表格已保存，切到预览让 agent 生成图表')
+    showToast(t('tableSaved'))
     setTab('preview')
   }
 
   return (
     <div className="flex flex-col overflow-hidden h-full">
-      {/* Tab bar */}
       <div className="flex items-center border-b flex-shrink-0"
         style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.4)' }}>
         <div className="px-4 py-3 flex-shrink-0">
@@ -499,32 +519,37 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
           </span>
         </div>
         <div className="flex items-center ml-2">
-          {TASK_TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+          {TASK_TABS.map(tk => (
+            <button key={tk.id} onClick={() => setTab(tk.id)}
               className="px-3 py-3 transition"
               style={{
                 fontSize: 11.5,
                 fontFamily: 'JetBrains Mono, monospace',
-                color: tab === t.id ? '#1A2B3C' : '#7A99AE',
-                fontWeight: tab === t.id ? 500 : 400,
-                borderBottom: tab === t.id ? '2px solid #1A2B3C' : '2px solid transparent',
+                color: tab === tk.id ? '#1A2B3C' : '#7A99AE',
+                fontWeight: tab === tk.id ? 500 : 400,
+                borderBottom: tab === tk.id ? '2px solid #1A2B3C' : '2px solid transparent',
                 marginBottom: -1,
               }}>
-              {t.label}
+              {tk.label}
             </button>
           ))}
         </div>
         {tab === 'preview' && (
           <div className="ml-auto px-4 flex items-center gap-2">
             <GitStatusBadge status={gitStatus} />
-            {/* Palette chips — direct apply (client-side + plot.py rewrite) */}
             {PALETTES.map(p => (
-              <button key={p.name} title={`应用 ${p.name} 配色`}
+              <button key={p.name} title={t('applyPalette', { name: p.name })}
                 onClick={() => applyPaletteDirect({
                   svgContent, palette: p.colors,
                   activeProjectId, activeExperimentId, activeTaskId,
                   updateSvgContent, fetchGitLog,
                   onNotice: (n) => showToast(n.text),
+                  msgs: {
+                    noColors: t('noColorsDetected'),
+                    writeFailed: t('paletteWriteFailed'),
+                    replaced: (n) => t('colorsReplaced', { n }),
+                    backendError: t('backendError'),
+                  },
                 })}
                 className="flex items-center gap-0.5 px-1.5 py-1 rounded-md transition hover:bg-black/5"
                 style={{ border: '1px solid #CFE0ED' }}>
@@ -542,13 +567,12 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
             <button onClick={() => setShowPdfBar(b => !b)}
               className="px-2 py-1 rounded-md"
               style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
-              下载 PDF
+              {t('downloadPdf')}
             </button>
           </div>
         )}
       </div>
 
-      {/* Tab content — Processed and Pipeline stay mounted (CSS-hidden) to preserve state */}
       <div className="flex-1 overflow-hidden flex flex-col">
         <div style={{ display: tab === 'processed' ? 'flex' : 'none', flex: 1, flexDirection: 'column', overflow: 'hidden' }}>
           <ProcessedTab onTableReady={handleTableReady} onStageToChat={onStageToChat} />
@@ -561,14 +585,14 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
             {showPdfBar && (
               <div className="flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
                 style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.6)' }}>
-                <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>文件名</span>
+                <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>{t('filename')}</span>
                 <input value={pdfName} onChange={e => setPdfName(e.target.value)}
                   className="flex-1 rounded px-2 py-1 outline-none"
                   style={{ fontSize: 11.5, border: '1px solid #BDCFDF', background: '#FFFFFF', fontFamily: 'JetBrains Mono, monospace' }} />
                 <button onClick={downloadPdf} disabled={exportingPdf}
                   className="px-3 py-1 rounded-md text-xs font-medium flex-shrink-0"
                   style={{ background: exportingPdf ? '#CFE0ED' : '#1A2B3C', color: exportingPdf ? '#7A99AE' : '#EBF4FA' }}>
-                  {exportingPdf ? '生成中…' : '下载'}
+                  {exportingPdf ? t('generating') : t('download')}
                 </button>
               </div>
             )}
@@ -577,15 +601,15 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
                 <div className="flex-1 rounded-xl overflow-hidden chart-shadow relative"
                   style={{ background: '#FFFFFF', border: '1px solid #CFE0ED' }}>
                   {!activeTaskId
-                    ? <div className="flex items-center justify-center h-full" style={{ color: '#7A99AE', fontSize: 13 }}>选择或新建一个任务</div>
+                    ? <div className="flex items-center justify-center h-full" style={{ color: '#7A99AE', fontSize: 13 }}>{t('selectOrCreateTask')}</div>
                     : <SvgPreview showBorders={showBorders} onElementClick={onElementClick} />
                   }
                   {generating && (
                     <div className="absolute inset-0 flex items-center justify-center"
                       style={{ background: 'rgba(235,244,250,0.75)', backdropFilter: 'blur(2px)' }}>
                       <div className="text-center pulse-soft">
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>Agent 正在生成…</div>
-                        <div className="mt-1 font-mono" style={{ fontSize: 11, color: '#4A6478' }}>分析 → 生成代码 → 执行</div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{t('agentGenerating')}</div>
+                        <div className="mt-1 font-mono" style={{ fontSize: 11, color: '#4A6478' }}>{t('agentPipeline')}</div>
                       </div>
                     </div>
                   )}
@@ -593,7 +617,7 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
                 {gitLog.length > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center gap-2 mb-2" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#4A6478' }}>
-                      <GitBranch size={11} /><span>历史</span>
+                      <GitBranch size={11} /><span>{t('history')}</span>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {gitLog.slice(0, 8).map((c, idx) => {
@@ -618,7 +642,7 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
                                       border: '1px solid #BDCFDF',
                                       background: 'rgba(255,255,255,0.9)',
                                     }}>
-                                    {restoringHash === c.hash ? '恢复中…' : '恢复'}
+                                    {restoringHash === c.hash ? t('restoring') : t('restore')}
                                   </button>
                                 )}
                                 <button
@@ -630,7 +654,7 @@ function TaskMainArea({ showToast, generating, send, onElementClick, onStageToCh
                                     border: '1px solid #BDCFDF',
                                     background: 'rgba(255,255,255,0.9)',
                                   }}>
-                                  参考
+                                  {t('reference')}
                                 </button>
                               </div>
                             </div>
@@ -673,6 +697,7 @@ function DragHandle({ onDragStart }) {
 
 function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
   const { activeExperimentId, activeTaskId, gitLog, fetchGitLog, fetchSvgOrRender, appendChatDraft } = useStore()
+  const t = useT()
   const [provider, setProvider] = useState('ollama')
   const { messages, send, generating, stop } = useAgentChat(provider)
   const [rightTab, setRightTab] = useState('chat')
@@ -696,16 +721,16 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         if (data.svg_content) store.updateSvgContent(data.svg_content)
         store.fetchSvg()
         store.fetchGitLog()
-        showToast(`已恢复到 ${hash.slice(0, 7)}`)
+        showToast(t('restoredTo', { hash: hash.slice(0, 7) }))
       } else {
-        showToast('恢复失败')
+        showToast(t('restoreFailed'))
       }
     } catch {
-      showToast('恢复失败')
+      showToast(t('restoreFailed'))
     } finally {
       setRestoringHash(null)
     }
-  }, [send, showToast])
+  }, [send, showToast, t])
 
   useEffect(() => {
     fetchGitLog()
@@ -717,7 +742,6 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
     setRightTab('edit')
   }, [])
 
-  // Stage selected text into the chat composer; user then decides to send.
   const stageToChat = useCallback((text) => {
     appendChatDraft(text)
     setRightTab('chat')
@@ -747,14 +771,12 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
   return (
     <div className="h-full flex overflow-hidden fade-in">
 
-      {/* Sidebar */}
       <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: sidebarW }}>
         <Sidebar onNewExperiment={onNewExperiment} onNewTask={onNewTask} />
       </div>
 
       <DragHandle onDragStart={e => startDrag(e, 'sidebar')} />
 
-      {/* Main area */}
       <main className="flex flex-col overflow-hidden flex-1 min-w-0">
         {activeTaskId
           ? <TaskMainArea showToast={showToast} generating={generating} send={send} onElementClick={onElementClick} onStageToChat={stageToChat} />
@@ -762,7 +784,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
             ? <ExperimentPanel />
             : (
               <div className="flex-1 flex items-center justify-center" style={{ color: '#7A99AE', fontSize: 13 }}>
-                选择或新建一个实验
+                {t('selectOrCreateExperiment')}
               </div>
             )
         }
@@ -770,7 +792,6 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
 
       <DragHandle onDragStart={e => startDrag(e, 'right')} />
 
-      {/* Right panel */}
       <div className="flex flex-col overflow-hidden flex-shrink-0" style={{ width: rightW, borderLeft: '1px solid #CFE0ED' }}>
         {rightTab === 'chat' && (
           <>
@@ -779,7 +800,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                 ? <button onClick={stop}
                     className="flex items-center gap-1 px-2 py-0.5 rounded-md"
                     style={{ fontSize: 11, border: '1px solid #DC2626', color: '#DC2626', background: 'rgba(220,38,38,0.06)' }}>
-                    <Square size={9} fill="currentColor" />停止
+                    <Square size={9} fill="currentColor" />{t('stop')}
                   </button>
                 : null
             } />
@@ -791,7 +812,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'edit' && (
           <>
-            <SectionHeader num="03" title={selectedEl ? `编辑 · ${selectedEl.gid}` : '元素编辑'} />
+            <SectionHeader num="03" title={selectedEl ? `${t('tabEdit')} · ${selectedEl.gid}` : t('tabEdit')} />
             <div className="flex-1 overflow-hidden">
               <ElementEditor selected={selectedEl} onClose={() => setRightTab('chat')}
                 onSendMessage={(msg) => { send(msg); setRightTab('chat') }} />
@@ -800,7 +821,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'properties' && (
           <>
-            <SectionHeader num="04" title="图表属性" />
+            <SectionHeader num="04" title={t('sectionProperties')} />
             <div className="flex-1 overflow-hidden">
               <PropertiesPanel />
             </div>
@@ -808,7 +829,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'palette' && (
           <>
-            <SectionHeader num="05" title="配色方案" />
+            <SectionHeader num="05" title={t('tabPalette')} />
             <div className="flex-1 overflow-hidden">
               <PalettePanel />
             </div>
@@ -816,7 +837,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'memory' && (
           <>
-            <SectionHeader num="06" title="记忆" />
+            <SectionHeader num="06" title={t('tabMemory')} />
             <div className="flex-1 overflow-hidden">
               <MemoryPanel />
             </div>
@@ -824,7 +845,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'template' && (
           <>
-            <SectionHeader num="07" title="模板" />
+            <SectionHeader num="07" title={t('tabTemplate')} />
             <div className="flex-1 overflow-hidden">
               <TemplatePanel onSendMessage={(msg) => { appendChatDraft(msg); setRightTab('chat') }} />
             </div>
@@ -832,10 +853,10 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'history' && (
           <>
-            <SectionHeader num="08" title="历史" subtitle={`${gitLog.length} 个版本`} />
+            <SectionHeader num="08" title={t('tabHistory')} subtitle={`${gitLog.length} ${t('tabHistory')}`} />
             <div className="flex-1 overflow-y-auto py-3">
               {gitLog.length === 0 && (
-                <div className="text-center py-10" style={{ fontSize: 12, color: '#9DB5C7' }}>暂无历史记录</div>
+                <div className="text-center py-10" style={{ fontSize: 12, color: '#9DB5C7' }}>{t('noHistory')}</div>
               )}
               {gitLog.map((c, idx) => {
                 const isCurrent = idx === 0
@@ -850,7 +871,6 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                       background: isCurrent ? 'rgba(26,43,60,0.04)' : 'transparent',
                       opacity: isRestoring ? 0.5 : 1,
                     }}>
-                    {/* Timeline spine */}
                     <div className="flex flex-col items-center flex-shrink-0" style={{ paddingTop: 3 }}>
                       <div style={{
                         width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
@@ -861,7 +881,6 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                         <div style={{ width: 1, flex: 1, minHeight: 20, background: '#CFE0ED', margin: '3px 0' }} />
                       )}
                     </div>
-                    {/* Content */}
                     <div className="flex-1 min-w-0 pb-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono" style={{ fontSize: 9.5, color: '#7A99AE' }}>{c.hash}</span>
@@ -869,7 +888,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                           <span style={{
                             fontSize: 9, borderRadius: 3, padding: '1px 5px',
                             background: '#1A2B3C', color: '#EBF4FA',
-                          }}>当前</span>
+                          }}>{t('currentVersion')}</span>
                         )}
                       </div>
                       <div className="mt-0.5" style={{
@@ -892,7 +911,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                             background: 'rgba(255,255,255,0.9)',
                             cursor: isCurrent ? 'default' : 'pointer',
                           }}>
-                          {isRestoring ? '恢复中…' : '恢复'}
+                          {isRestoring ? t('restoring') : t('restore')}
                         </button>
                         <button
                           onClick={() => { appendChatDraft(versionRef); setRightTab('chat') }}
@@ -904,7 +923,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
                             background: 'rgba(255,255,255,0.9)',
                             cursor: 'pointer',
                           }}>
-                          参考
+                          {t('reference')}
                         </button>
                       </div>
                     </div>
@@ -920,13 +939,13 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
       <div className="flex flex-col items-center gap-1 py-3 border-l flex-shrink-0"
         style={{ width: 48, borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.3)' }}>
         {[
-          ['chat',       MessageSquare,    '对话'],
-          ['edit',       Pencil,           '元素编辑'],
-          ['properties', SlidersHorizontal,'属性'],
-          ['palette',    Palette,          '配色方案'],
-          ['memory',     FileText,         '记忆'],
-          ['template',   LayoutGrid,       '模板'],
-          ['history',    Clock,            '历史'],
+          ['chat',       MessageSquare,    t('tabChat')],
+          ['edit',       Pencil,           t('tabEdit')],
+          ['properties', SlidersHorizontal, t('tabProperties')],
+          ['palette',    Palette,          t('tabPalette')],
+          ['memory',     FileText,         t('tabMemory')],
+          ['template',   LayoutGrid,       t('tabTemplate')],
+          ['history',    Clock,            t('tabHistory')],
         ].map(([id, Icon, label]) => (
           <button key={id} onClick={() => setRightTab(id)} title={label}
             className="w-9 h-9 flex items-center justify-center rounded-md transition relative"
@@ -956,6 +975,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState(null)
   const { activeProjectId, activeExperimentId, activeTaskId, setActive, setActiveTask } = useStore()
+  const t = useT()
 
   const showToast = (text) => {
     setToast(text)
@@ -1023,7 +1043,7 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-md p-0.5" style={{ background: '#CFE0ED' }}>
-            {[['dashboard', LayoutGrid, '项目'], ['workspace', FileText, '工作台']].map(([k, I, l]) => (
+            {[['dashboard', LayoutGrid, t('navProjects')], ['workspace', FileText, t('navWorkspace')]].map(([k, I, l]) => (
               <button key={k} onClick={() => setView(k)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded transition"
                 style={{
@@ -1036,6 +1056,8 @@ export default function App() {
               </button>
             ))}
           </div>
+          <div className="w-px h-5 mx-1" style={{ background: '#BDCFDF' }} />
+          <LangToggle />
           <div className="w-px h-5 mx-1" style={{ background: '#BDCFDF' }} />
           <button onClick={() => setShowSettings(true)}
             className="w-7 h-7 flex items-center justify-center rounded-md transition hover:opacity-70"
@@ -1059,19 +1081,19 @@ export default function App() {
       {showNewProject && (
         <NewProjectModal
           onClose={() => setShowNewProject(false)}
-          onCreate={() => { setShowNewProject(false); showToast('项目已创建') }}
+          onCreate={() => { setShowNewProject(false); showToast(t('projectCreated')) }}
         />
       )}
       {showNewExperiment && (
         <NewExperimentModal
           onClose={() => setShowNewExperiment(false)}
-          onCreate={() => { setShowNewExperiment(false); showToast('实验已创建') }}
+          onCreate={() => { setShowNewExperiment(false); showToast(t('experimentCreated')) }}
         />
       )}
       {showNewTask && (
         <NewTaskModal
           onClose={() => setShowNewTask(false)}
-          onCreate={() => { setShowNewTask(false); showToast('任务已创建') }}
+          onCreate={() => { setShowNewTask(false); showToast(t('taskCreated')) }}
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

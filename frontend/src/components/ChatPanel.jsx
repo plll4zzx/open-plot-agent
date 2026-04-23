@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send, ChevronDown, ChevronRight, X, Table2, Code2, Clock } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 
 // ── Think-tag parser ──────────────────────────────────────────
 
@@ -24,6 +25,7 @@ function parseContent(text) {
 
 function ThinkingBlock({ content, complete }) {
   const [open, setOpen] = useState(false)
+  const t = useT()
   const lineCount = content.split('\n').length
   return (
     <div className="my-2 rounded-md overflow-hidden"
@@ -33,7 +35,7 @@ function ThinkingBlock({ content, complete }) {
         style={{ background: 'rgba(124,58,237,0.06)', color: '#7C3AED' }}>
         <span style={{ fontSize: 12 }}>💭</span>
         <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-          {complete ? `思考过程 (${lineCount} 行)` : '思考中…'}
+          {complete ? t('thinkingProcess', { n: lineCount }) : t('thinking')}
         </span>
         {!complete && <span className="pulse-soft" style={{ fontSize: 8 }}>●</span>}
         <ChevronDown size={11} style={{ marginLeft: 'auto', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s' }} />
@@ -87,6 +89,7 @@ function ToolCallRow({ msg }) {
 // ── MessageBubble ─────────────────────────────────────────────
 
 function MessageBubble({ msg }) {
+  const t = useT()
   if (msg.role === 'user') {
     return (
       <div className="flex justify-end mb-3">
@@ -123,7 +126,7 @@ function MessageBubble({ msg }) {
     return (
       <div className="mb-2 px-3 py-2 rounded-md"
         style={{ fontSize: 11, background: 'rgba(26,125,196,0.06)', color: '#1A7DC4', border: '1px solid rgba(26,125,196,0.15)', lineHeight: 1.5 }}>
-        <div style={{ fontWeight: 500, marginBottom: 2 }}>🔄 上下文同步</div>
+        <div style={{ fontWeight: 500, marginBottom: 2 }}>{t('contextSync')}</div>
         <div style={{ whiteSpace: 'pre-wrap', fontSize: 10.5 }}>{msg.content}</div>
       </div>
     )
@@ -201,6 +204,7 @@ function ProviderPill({ provider, onChange }) {
 
 export function ChatPanel({ messages, send, generating, provider, onProviderChange }) {
   const { chatDraftText, chatDraftContext, setChatDraftText, removeChatContext, clearChatContext } = useStore()
+  const t = useT()
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
 
@@ -236,7 +240,7 @@ export function ChatPanel({ messages, send, generating, provider, onProviderChan
             <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)' }}>
               <span className="spin inline-block" style={{ fontSize: 9, color: '#7C3AED' }}>◌</span>
             </div>
-            <span className="pulse-soft" style={{ fontSize: 11, color: '#7C3AED' }}>思考中…</span>
+            <span className="pulse-soft" style={{ fontSize: 11, color: '#7C3AED' }}>{t('thinking')}</span>
           </div>
         )}
         <div ref={bottomRef} />
@@ -262,7 +266,7 @@ export function ChatPanel({ messages, send, generating, provider, onProviderChan
               value={chatDraftText}
               onChange={e => setChatDraftText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
-              placeholder="描述你想做什么图…"
+              placeholder={t('chatPlaceholder')}
               rows={2}
               className="w-full outline-none bg-transparent"
               style={{ fontSize: 13, color: 'var(--c-text, #1A2B3C)', lineHeight: 1.5, resize: 'none', minHeight: 44 }}
@@ -270,7 +274,7 @@ export function ChatPanel({ messages, send, generating, provider, onProviderChan
             <div className="flex items-center justify-between mt-1.5">
               <ProviderPill provider={provider} onChange={onProviderChange} />
               <div className="flex items-center gap-2">
-                <span style={{ fontSize: 10, color: 'var(--c-text-faint, #9DB5C7)', fontFamily: 'JetBrains Mono, monospace' }}>⌘↵ 发送</span>
+                <span style={{ fontSize: 10, color: 'var(--c-text-faint, #9DB5C7)', fontFamily: 'JetBrains Mono, monospace' }}>{t('sendShortcut')}</span>
                 <button
                   onClick={submit}
                   disabled={generating || (!chatDraftText.trim() && chatDraftContext.length === 0)}

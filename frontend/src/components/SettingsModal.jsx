@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Loader, ExternalLink } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 import { EDITOR_THEMES } from './CodeEditor'
 
 const API = ''
@@ -70,6 +71,7 @@ function SelectInput({ value, onChange, options }) {
 function OllamaTab({ form, setForm }) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
+  const t = useT()
 
   const testConnection = async () => {
     setTesting(true)
@@ -102,7 +104,7 @@ function OllamaTab({ form, setForm }) {
         />
       </Field>
 
-      <Field label="模型名称">
+      <Field label={t('ollamaModelName')}>
         <TextInput
           value={form.ollama_model}
           onChange={v => setForm(f => ({ ...f, ollama_model: v }))}
@@ -118,12 +120,12 @@ function OllamaTab({ form, setForm }) {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs"
           style={{ border: '1px solid #BDCFDF', color: '#1F3547', background: testing ? '#EBF4FA' : 'transparent' }}>
           {testing ? <Loader size={11} className="spin" /> : null}
-          {testing ? '测试中…' : '测试连接'}
+          {testing ? t('testing') : t('testConnection')}
         </button>
         {testResult && (
           <span style={{ fontSize: 11.5, color: testResult.ok ? '#1A7DC4' : '#DC2626', fontFamily: 'JetBrains Mono, monospace' }}>
             {testResult.ok
-              ? `✓ 已连接，${testResult.models.length} 个模型`
+              ? t('connectedModels', { n: testResult.models.length })
               : `✗ ${testResult.error}`}
           </span>
         )}
@@ -133,7 +135,7 @@ function OllamaTab({ form, setForm }) {
         <div className="mt-3 rounded-md p-2.5"
           style={{ background: 'rgba(26,125,196,0.05)', border: '1px solid rgba(26,125,196,0.15)' }}>
           <div style={{ fontSize: 10.5, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace', marginBottom: 4 }}>
-            已安装的模型
+            {t('installedModels')}
           </div>
           <div className="flex flex-wrap gap-1">
             {testResult.models.map(m => (
@@ -157,11 +159,12 @@ function OllamaTab({ form, setForm }) {
 
 function LiteLLMTab({ form, setForm, apiKeySet }) {
   const [showKey, setShowKey] = useState(false)
+  const t = useT()
   return (
     <div>
       <Field
-        label="模型字符串"
-        hint='LiteLLM 格式：provider/model，如 "openai/gpt-4o"、"gemini/gemini-2.0-flash"、"groq/llama-3.3-70b-versatile"'>
+        label={t('litellmModelString')}
+        hint={t('litellmHint')}>
         <TextInput
           value={form.litellm_model}
           onChange={v => setForm(f => ({ ...f, litellm_model: v }))}
@@ -171,7 +174,7 @@ function LiteLLMTab({ form, setForm, apiKeySet }) {
       </Field>
       <Field
         label="API Key"
-        hint={apiKeySet ? '已配置（留空则保留现有 key）' : '对应服务商的 API Key'}>
+        hint={apiKeySet ? t('apiKeyConfigured') : t('apiKeyHint')}>
         <div className="flex gap-2">
           <TextInput
             type={showKey ? 'text' : 'password'}
@@ -184,13 +187,13 @@ function LiteLLMTab({ form, setForm, apiKeySet }) {
             onClick={() => setShowKey(s => !s)}
             className="flex-shrink-0 px-2 rounded-md"
             style={{ border: '1px solid #BDCFDF', fontSize: 11, color: '#4A6478' }}>
-            {showKey ? '隐藏' : '显示'}
+            {showKey ? t('hideKey') : t('showKey')}
           </button>
         </div>
       </Field>
       <div className="rounded-md px-3 py-2.5 mt-1"
         style={{ background: 'rgba(26,125,196,0.05)', border: '1px solid rgba(26,125,196,0.15)', fontSize: 11, color: '#1F3547', lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 500, marginBottom: 4 }}>支持的 provider</div>
+        <div style={{ fontWeight: 500, marginBottom: 4 }}>{t('supportedProviders')}</div>
         {[
           ['openai/gpt-4o', 'OPENAI_API_KEY'],
           ['gemini/gemini-2.0-flash', 'GEMINI_API_KEY'],
@@ -212,18 +215,19 @@ function LiteLLMTab({ form, setForm, apiKeySet }) {
 
 function AnthropicTab({ form, setForm, apiKeySet }) {
   const [showKey, setShowKey] = useState(false)
+  const t = useT()
 
   return (
     <div>
       <Field
-        label="模型"
-        hint="选择或输入模型 ID">
+        label={t('anthropicModel')}
+        hint={t('anthropicModelHint')}>
         <SelectInput
           value={ANTHROPIC_MODELS.includes(form.anthropic_model) ? form.anthropic_model : '__custom__'}
           onChange={v => v !== '__custom__' && setForm(f => ({ ...f, anthropic_model: v }))}
           options={[
             ...ANTHROPIC_MODELS.map(m => ({ value: m, label: m })),
-            { value: '__custom__', label: '自定义…' },
+            { value: '__custom__', label: t('anthropicCustom') },
           ]}
         />
         {!ANTHROPIC_MODELS.includes(form.anthropic_model) && (
@@ -238,7 +242,7 @@ function AnthropicTab({ form, setForm, apiKeySet }) {
 
       <Field
         label="API Key"
-        hint={apiKeySet ? '已配置（留空则保留现有 key）' : '尚未配置'}>
+        hint={apiKeySet ? t('apiKeyConfigured') : t('apiKeyNotConfigured')}>
         <div className="flex gap-2">
           <TextInput
             type={showKey ? 'text' : 'password'}
@@ -251,7 +255,7 @@ function AnthropicTab({ form, setForm, apiKeySet }) {
             onClick={() => setShowKey(s => !s)}
             className="flex-shrink-0 px-2 rounded-md"
             style={{ border: '1px solid #BDCFDF', fontSize: 11, color: '#4A6478' }}>
-            {showKey ? '隐藏' : '显示'}
+            {showKey ? t('hideKey') : t('showKey')}
           </button>
         </div>
       </Field>
@@ -260,30 +264,29 @@ function AnthropicTab({ form, setForm, apiKeySet }) {
         <ExternalLink size={10} />
         <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
           style={{ color: '#7A99AE', textDecoration: 'underline' }}>
-          获取 API Key
+          {t('getApiKey')}
         </a>
       </div>
     </div>
   )
 }
 
-// ── Main modal ────────────────────────────────────────────────
-
 // ── Editor theme picker ───────────────────────────────────────
 
 function ThemePicker() {
   const { editorTheme, setEditorTheme } = useStore()
+  const t = useT()
 
   return (
-    <Field label="编辑器主题">
+    <Field label={t('settingsEditorTheme')}>
       <div className="grid grid-cols-4 gap-1.5">
-        {EDITOR_THEMES.map(t => {
-          const active = editorTheme === t.id
+        {EDITOR_THEMES.map(th => {
+          const active = editorTheme === th.id
           return (
             <button
-              key={t.id}
-              onClick={() => setEditorTheme(t.id)}
-              title={t.label}
+              key={th.id}
+              onClick={() => setEditorTheme(th.id)}
+              title={th.label}
               style={{
                 padding: '6px 4px',
                 borderRadius: 6,
@@ -296,10 +299,9 @@ function ThemePicker() {
                 gap: 4,
               }}
             >
-              {/* Mini swatch */}
               <div style={{
                 width: 40, height: 26, borderRadius: 3,
-                background: t.bg,
+                background: th.bg,
                 border: '1px solid rgba(0,0,0,0.12)',
                 display: 'flex',
                 alignItems: 'center',
@@ -307,16 +309,43 @@ function ThemePicker() {
                 gap: 3,
                 flexShrink: 0,
               }}>
-                {t.swatchColors.map((c, i) => (
+                {th.swatchColors.map((c, i) => (
                   <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: `#${c}` }} />
                 ))}
               </div>
               <span style={{ fontSize: 9.5, fontFamily: 'JetBrains Mono, monospace', color: active ? '#1A7DC4' : '#4A6478', lineHeight: 1.2, textAlign: 'center' }}>
-                {t.label}
+                {th.label}
               </span>
             </button>
           )
         })}
+      </div>
+    </Field>
+  )
+}
+
+// ── Language picker ───────────────────────────────────────────
+
+function LanguagePicker() {
+  const { lang, setLang } = useStore()
+  const t = useT()
+  return (
+    <Field label={t('language')}>
+      <div className="flex gap-2">
+        {[['zh', '中文'], ['en', 'English']].map(([l, label]) => (
+          <button key={l} onClick={() => setLang(l)}
+            className="flex-1 py-1.5 rounded-md text-sm transition"
+            style={{
+              border: '1px solid',
+              borderColor: lang === l ? '#1A2B3C' : '#BDCFDF',
+              background: lang === l ? '#1A2B3C' : 'transparent',
+              color: lang === l ? '#EBF4FA' : '#2E4A5E',
+              fontWeight: lang === l ? 500 : 400,
+              fontSize: 12.5,
+            }}>
+            {label}
+          </button>
+        ))}
       </div>
     </Field>
   )
@@ -330,6 +359,7 @@ export function SettingsModal({ onClose }) {
   const [saved, setSaved] = useState(false)
   const [apiKeySet, setApiKeySet] = useState(false)
   const [activeTab, setActiveTab] = useState('ollama')
+  const t = useT()
 
   const [form, setForm] = useState({
     max_tool_rounds: 8,
@@ -407,7 +437,7 @@ export function SettingsModal({ onClose }) {
               CONFIG
             </div>
             <h3 style={{ fontSize: 16, fontWeight: 500, fontFamily: 'Fraunces, serif', fontStyle: 'italic', marginTop: 1 }}>
-              模型设置
+              {t('settingsTitle')}
             </h3>
           </div>
           <button onClick={onClose}
@@ -419,26 +449,26 @@ export function SettingsModal({ onClose }) {
 
         {loading ? (
           <div className="py-10 text-center pulse-soft" style={{ fontSize: 13, color: '#7A99AE' }}>
-            加载中…
+            {t('loading')}
           </div>
         ) : (
           <div className="px-5 py-4">
             {/* Default provider */}
-            <Field label="默认模型提供商">
+            <Field label={t('settingsDefaultProvider')}>
               <div className="flex gap-2">
-                {TABS.map(t => (
-                  <button key={t.id}
-                    onClick={() => setForm(f => ({ ...f, default_provider: t.id }))}
+                {TABS.map(tab => (
+                  <button key={tab.id}
+                    onClick={() => setForm(f => ({ ...f, default_provider: tab.id }))}
                     className="flex-1 py-1.5 rounded-md text-sm transition"
                     style={{
                       border: '1px solid',
-                      borderColor: form.default_provider === t.id ? '#1A2B3C' : '#BDCFDF',
-                      background: form.default_provider === t.id ? '#1A2B3C' : 'transparent',
-                      color: form.default_provider === t.id ? '#EBF4FA' : '#2E4A5E',
-                      fontWeight: form.default_provider === t.id ? 500 : 400,
+                      borderColor: form.default_provider === tab.id ? '#1A2B3C' : '#BDCFDF',
+                      background: form.default_provider === tab.id ? '#1A2B3C' : 'transparent',
+                      color: form.default_provider === tab.id ? '#EBF4FA' : '#2E4A5E',
+                      fontWeight: form.default_provider === tab.id ? 500 : 400,
                       fontSize: 12.5,
                     }}>
-                    {t.label}
+                    {tab.label}
                   </button>
                 ))}
               </div>
@@ -446,19 +476,19 @@ export function SettingsModal({ onClose }) {
 
             {/* Provider-specific tabs */}
             <div className="flex border-b mb-4" style={{ borderColor: '#CFE0ED' }}>
-              {TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
+              {TABS.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                   className="px-3 py-2 transition"
                   style={{
                     fontSize: 12,
                     fontFamily: 'JetBrains Mono, monospace',
-                    color: activeTab === t.id ? '#1A2B3C' : '#7A99AE',
-                    fontWeight: activeTab === t.id ? 500 : 400,
-                    borderBottom: activeTab === t.id ? '2px solid #1A2B3C' : '2px solid transparent',
+                    color: activeTab === tab.id ? '#1A2B3C' : '#7A99AE',
+                    fontWeight: activeTab === tab.id ? 500 : 400,
+                    borderBottom: activeTab === tab.id ? '2px solid #1A2B3C' : '2px solid transparent',
                     marginBottom: -1,
                     background: 'transparent',
                   }}>
-                  {t.label}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -468,7 +498,7 @@ export function SettingsModal({ onClose }) {
             {activeTab === 'litellm' && <LiteLLMTab form={form} setForm={setForm} apiKeySet={litelmKeySet} />}
 
             <div className="mt-4 pt-4 border-t" style={{ borderColor: '#CFE0ED' }}>
-              <Field label="最大工具轮次" hint="Agent 每次响应最多可调用工具的轮数。若出现超出轮次错误请调大此值。">
+              <Field label={t('settingsMaxRounds')} hint={t('settingsMaxRoundsHint')}>
                 <div className="flex items-center gap-3">
                   <input
                     type="range" min={4} max={40} step={1}
@@ -486,6 +516,10 @@ export function SettingsModal({ onClose }) {
             <div className="mt-4 pt-4 border-t" style={{ borderColor: '#CFE0ED' }}>
               <ThemePicker />
             </div>
+
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: '#CFE0ED' }}>
+              <LanguagePicker />
+            </div>
           </div>
         )}
 
@@ -495,7 +529,7 @@ export function SettingsModal({ onClose }) {
           <button onClick={onClose}
             className="px-3 py-1.5 rounded-md"
             style={{ fontSize: 12.5, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
-            关闭
+            {t('close')}
           </button>
           <button onClick={save} disabled={saving || loading}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-md font-medium"
@@ -505,7 +539,7 @@ export function SettingsModal({ onClose }) {
               color: saving ? '#7A99AE' : '#EBF4FA',
             }}>
             {saving ? <Loader size={12} className="spin" /> : saved ? <Check size={12} /> : null}
-            {saving ? '保存中…' : saved ? '已保存' : '保存'}
+            {saving ? t('saving') : saved ? t('saved') : t('save')}
           </button>
         </div>
       </div>

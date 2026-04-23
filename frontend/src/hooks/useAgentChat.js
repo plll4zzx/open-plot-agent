@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 
 export function useAgentChat(provider = 'ollama') {
-  const { activeProjectId, activeExperimentId, activeTaskId, fetchSvg, fetchGitLog, setGitStatus } = useStore()
+  const { activeProjectId, activeExperimentId, activeTaskId, fetchSvg, fetchGitLog, setGitStatus, incrementAgentTurn } = useStore()
   const wsRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [generating, setGenerating] = useState(false)
@@ -14,6 +14,9 @@ export function useAgentChat(provider = 'ollama') {
   // Keep a ref that always tracks the latest messages (avoids stale closures in cleanup)
   const messagesRef = useRef([])
   useEffect(() => { messagesRef.current = messages }, [messages])
+
+  // Mutable flag so onclose can tell whether a turn was in progress
+  const isGeneratingRef = useRef(false)
 
   // Stop: send a cancel signal over the existing WS so the backend can abort the current turn.
   // Fallback: if WS is not open, force a reconnect (old behavior).
@@ -78,6 +81,15 @@ export function useAgentChat(provider = 'ollama') {
       // Fall back to in-memory session if backend returned nothing
       if (!history.length) {
         history = useStore.getState().chatSessions[taskId] || []
+      }
+
+      // Advance the id counter past any loaded message ids to avoid React key collisions
+      if (history.length) {
+        const maxId = history.reduce((m, msg) => {
+          const n = parseInt(msg.id, 10)
+          return isNaN(n) ? m : Math.max(m, n)
+        }, 0)
+        if (maxId > msgId.current) msgId.current = maxId
       }
 
       const systemMsg = {
@@ -145,6 +157,7 @@ export function useAgentChat(provider = 'ollama') {
           break
 
         case 'done':
+          isGeneratingRef.current = false
           setMessages(prev => {
             const next = prev.map(m => m.role === 'thinking' && !m.complete ? { ...m, complete: true } : m)
             saveHistory(next, projectId, experimentId, taskId)
@@ -155,9 +168,11 @@ export function useAgentChat(provider = 'ollama') {
           fetchGitLog()
           setGitStatus('saving')
           setTimeout(() => setGitStatus('saved'), 800)
+          incrementAgentTurn()
           break
 
         case 'stopped':
+          isGeneratingRef.current = false
           setMessages(prev => {
             const next = [...prev, { id: nextId(), role: 'system', content: '已停止生成' }]
             saveHistory(next, projectId, experimentId, taskId)
@@ -169,13 +184,23 @@ export function useAgentChat(provider = 'ollama') {
           break
 
         case 'error':
+          isGeneratingRef.current = false
           setMessages(prev => [...prev, { id: nextId(), role: 'error', content: event.message }])
           setGenerating(false)
           break
       }
     }
 
-    ws.onclose = () => setGenerating(false)
+    ws.onclose = () => {
+      if (isGeneratingRef.current) {
+        isGeneratingRef.current = false
+        setMessages(prev => [...prev, {
+          id: nextId(), role: 'error',
+          content: '连接中断，生成已停止。请重新发送消息。',
+        }])
+      }
+      setGenerating(false)
+    }
     ws.onerror = () => {
       setMessages(prev => [...prev, {
         id: nextId(), role: 'error',
@@ -199,6 +224,7 @@ export function useAgentChat(provider = 'ollama') {
   const send = useCallback((text) => {
     if (!text.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
     setMessages(prev => [...prev, { id: nextId(), role: 'user', content: text }])
+    isGeneratingRef.current = true
     setGenerating(true)
     wsRef.current.send(JSON.stringify({ message: text }))
   }, [])

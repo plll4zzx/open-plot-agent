@@ -10,6 +10,18 @@
 
 ---
 
+## Screenshots
+
+| Agent conversation & code generation | Chart preview & property editing |
+|---|---|
+| ![Agent chat panel](pic/plot-agent.png) | ![Chart editing and properties panel](pic/plot-edit.png) |
+
+| Git version history | Excel-style data table |
+|---|---|
+| ![Git history](pic/plot-history.png) | ![Data table editor](pic/tabel.png) |
+
+---
+
 ## Table of Contents
 
 - [Introduction](#introduction)
@@ -50,10 +62,17 @@ Unlike online tools such as Datawrapper or Flourish, OpenPlotAgent:
 The core design principle: AI handles the tedious scripting and data processing; you handle aesthetic judgment and fine-tuning — the two work together seamlessly.
 
 - Conversational plotting: describe what you need, Agent handles data exploration, code generation, and rendering
-- Visual takeover: click any SVG element to directly edit colors, labels, line widths — no code changes needed
-- One-click color scheme switching with custom palette saving
-- Tabular data viewer and editor — paste Excel data directly
+- Visual takeover: click any SVG element to directly edit colors, font sizes, text, and line widths; double-click titles and axis labels for in-place editing; drag the legend to reposition it; double-click an axis to quickly set xlim/ylim
+- One-click color scheme switching (server-side `/palette` rewrites `plot.py` without LLM); save custom palettes
+- **Chart Properties panel**: auto-parses `@prop` annotations in `plot.py` and generates UI controls for each property (title, font sizes, colors, legend, axis ranges, etc.); each property has its own toggle — disabling it removes the element from the chart, enabling it restores it; no LLM needed for fine-tuning
+- Excel-style data table: drag to select cells, Shift+click to extend selection, Ctrl+A/C/V, click row numbers to select entire rows, click column headers to sort, double-click to edit, right-click to insert/delete rows
+- Monaco Editor with Python syntax highlighting, line numbers, bracket matching, Ctrl+S to save
+- Context-aware selection: select data or code snippets and "add to chat" with source attribution — you decide when to send
+- Persistent chat history: full message history (including thinking blocks) is restored when switching tasks or refreshing the page; existing `plot.py` is auto-rendered on task open
+- Four-tier memory panel (global / project / experiment / task): edit `.md` memory files directly in the UI; panel auto-refreshes after each agent turn
+- 8 academic chart templates (grouped bar, line, heatmap, boxplot, scatter, violin, stacked bar, donut) — one click generates a starter prompt
 - Agent-aware manual edits: handmade changes automatically notify the Agent to keep context in sync
+- Chinese/English UI switching (top-right settings panel)
 
 ### Paper-Ready PDF Export
 
@@ -67,22 +86,25 @@ The core design principle: AI handles the tedious scripting and data processing;
 
 The Agent is not a black box — every tool call streams live in the Chat panel so you always know what it's doing and why.
 
-The Agent has a complete tool chain (14 tools) covering the full plotting workflow:
+The Agent has a complete tool chain (19 tools) covering the full plotting workflow:
 
-- **Data layer**: `inspect_data` explores structure → `query_data` filters → `transform_data` cleans (12+ operations) → `write_data` saves
-- **Execution layer**: `execute_python` runs code in the sandbox → `render_chart` re-renders SVG → `install_package` installs dependencies on demand
+- **Data layer**: `summarize_data` quick overview → `inspect_data` explores structure → `recommend_charts` suggests chart types → `query_data` filters → `transform_data` cleans (12+ operations) → `write_data` saves
+- **Execution layer**: `execute_python` runs code in the sandbox → `patch_config_prop` safely updates `@prop` config variables → `render_chart` re-renders SVG → `install_package` installs dependencies on demand
 - **Version layer**: `git_log` browses history → `git_diff` compares versions → `git_restore` reverts files
+- **Memory layer**: `memory_read` loads multi-level context → `memory_write` persists decisions
+- **RAG layer**: `search_charts` searches past chart code by semantic similarity
 
 Tool inputs and outputs are visible in real time, and you can intervene at any point — let the Agent run to completion or take over manually at any step.
 
 ### Persistent Agent Memory
 
-The Agent accumulates knowledge at three levels, persisting across sessions:
+The Agent accumulates knowledge at four levels, persisting across sessions:
 
 | Level | Location | What it remembers |
 | --- | --- | --- |
 | **Global** | `~/.config/` | LLM preferences, general plotting habits |
 | **Project** | `PROJECT.md` | Journal specs, color conventions, axis preferences |
+| **Experiment** | `EXPERIMENT.md` | Data source, collection notes, shared style conventions |
 | **Task** | `TASK.md` | Data decisions, design rationale from past iterations |
 
 The longer you use a project, the better the Agent knows your style — no need to re-explain journal requirements, fonts, or color preferences each time.
@@ -286,7 +308,7 @@ OpenPlotAgent breaks academic figure creation into four standard steps:
 2. **Upload Data** — Upload raw data files (CSV, Excel, JSON, etc.) in the Experiment panel
 3. **Create a Task** — Create one Task per figure to maintain separation of concerns
 4. **Chat to Plot** — Describe your needs in the Chat panel; the Agent handles data exploration, code generation, and rendering automatically
-5. **Visual Refinement** — Click SVG elements to edit colors/text, or swap the entire color scheme
+5. **Visual Refinement** — Toggle properties in the Chart Properties panel (title, font sizes, legend, axis limits); click SVG elements to edit colors or text; drag the legend to reposition; swap the entire color scheme
 6. **Export** — Download SVG or PDF (PGF format, LaTeX-compatible)
 
 ---
@@ -360,34 +382,43 @@ All data is stored locally under `~/open-plot-agent/`:
                         ├── processed/
                         │   └── data.csv    # Cleaned data (Agent reads this directly)
                         ├── chart/
-                        │   ├── plot.py     # Generated Matplotlib code
-                        │   └── output.svg  # Rendered output
-                        └── conversations/  # Conversation logs (JSON)
+                        │   ├── data_prep.py    # Stage 1: data loading & cleaning
+                        │   ├── plot.py         # Stage 2: plotting code (with CHART CONFIG @prop block)
+                        │   └── output.svg      # Rendered output
+                        ├── chat_history.json   # Persistent chat history (survives page refresh, incl. thinking)
+                        └── .plotsmith/
+                            └── context.json    # Agent session context (tool call history)
 ```
 
 ---
 
 ## Agent Tool Reference
 
-The Agent has access to 14 tools:
+The Agent has access to 19 tools:
 
 ### Data Processing Tools
 | Tool | Description |
 |------|-------------|
-| `inspect_data` | Preview file structure, column names, data types, and statistics |
+| `summarize_data` | Quick overview of column count, data types, and distribution — ideal for the exploration phase |
+| `inspect_data` | Detailed preview of file structure, column names, data types, and statistics |
+| `recommend_charts` | Analyze a data file and recommend 2-4 appropriate chart types based on column structure |
 | `query_data` | Filter data by columns/conditions with row limit support |
 | `transform_data` | 12+ transformation operations (forward_fill, transpose, pivot, melt, rename, drop, to_numeric, fillna, etc.) |
 | `write_data` | Save processed data as CSV |
+
+### File Operation Tools
+| Tool | Description |
+|------|-------------|
 | `read_file` | Read any task file |
 | `write_file` | Write content to a file |
 | `list_files` | List files in a directory |
-| `export_from_experiment` | Copy raw data from experiment level to task level |
 
 ### Chart Generation Tools
 | Tool | Description |
 |------|-------------|
-| `execute_python` | Execute Python code in the project sandbox (30s timeout) |
+| `patch_config_prop` | Directly update a `@prop` config variable in `plot.py` and re-render (safer than write_file) |
 | `render_chart` | Re-run `plot.py` and return the SVG |
+| `execute_python` | Execute Python code in the project sandbox (30s timeout) |
 | `install_package` | Dynamically install a pip package into the project venv |
 
 ### Git Version Control Tools
@@ -396,6 +427,17 @@ The Agent has access to 14 tools:
 | `git_log` | View commit history |
 | `git_diff` | Compare two versions of a file |
 | `git_restore` | Restore a file to a specific commit |
+
+### Memory Tools
+| Tool | Description |
+|------|-------------|
+| `memory_read` | Load persistent memory (scope: global / project / experiment / task) |
+| `memory_write` | Write or append content to a memory scope |
+
+### RAG Tools
+| Tool | Description |
+|------|-------------|
+| `search_charts` | Search past successfully generated chart code by semantic similarity |
 
 ---
 

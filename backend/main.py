@@ -1068,7 +1068,7 @@ async def auto_render_chart(project_id: str, experiment_id: str, task_id: str):
 class ChatHistoryBody(BaseModel):
     messages: list[dict]
 
-CHAT_HISTORY_ROLES = {"user", "agent", "tool_call", "tool_result", "error"}
+CHAT_HISTORY_ROLES = {"user", "agent", "tool_call", "thinking", "context_notice", "error"}
 
 @app.get("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/chat-history")
 async def get_chat_history(project_id: str, experiment_id: str, task_id: str):
@@ -1087,7 +1087,7 @@ async def get_chat_history(project_id: str, experiment_id: str, task_id: str):
 async def save_chat_history(project_id: str, experiment_id: str, task_id: str, body: ChatHistoryBody):
     task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
     task_dir.mkdir(parents=True, exist_ok=True)
-    # Only persist meaningful roles — skip ephemeral system/thinking/context_notice messages
+    # Persist all meaningful roles; skip ephemeral 'system' connection notices
     to_save = [m for m in body.messages if m.get("role") in CHAT_HISTORY_ROLES]
     history_file = task_dir / "chat_history.json"
     history_file.write_text(json.dumps(to_save, ensure_ascii=False, indent=2))

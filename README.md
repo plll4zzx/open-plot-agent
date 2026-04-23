@@ -10,6 +10,18 @@
 
 ---
 
+## 界面预览
+
+| Agent 对话与代码生成 | 图表预览与属性调整 |
+|---|---|
+| ![Agent 对话面板](pic/plot-agent.png) | ![图表编辑与属性面板](pic/plot-edit.png) |
+
+| Git 版本历史 | Excel 风格数据表格 |
+|---|---|
+| ![Git 历史记录](pic/plot-history.png) | ![数据表格编辑](pic/tabel.png) |
+
+---
+
 ## 目录
 
 - [项目简介](#项目简介)
@@ -56,8 +68,9 @@ OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处
 - Excel 风格数据表格：鼠标拖拽选区、Shift+点击扩选、Ctrl+A/C/V 全选复制粘贴、点击行号选整行、点击列名选整列、双击编辑单元格、右键插入/删除行、右键列名排序
 - 代码编辑器：Monaco Editor + Python 语法高亮、行号、括号匹配、Ctrl+S 保存
 - 选中数据/代码片段"添加到对话框"（非直接发送），附带来源标注后由用户决定何时发送
-- 对话历史持久化：切换任务或刷新页面后恢复历史消息，每次打开任务自动渲染已有 `plot.py`
-- 三级记忆面板（全局 / 项目 / 实验 / 任务），可在 UI 中直接编辑 `.md` 记忆文件
+- 对话历史持久化：切换任务或刷新页面后完整恢复历史消息（含 thinking 过程），每次打开任务自动渲染已有 `plot.py`
+- 四级记忆面板（全局 / 项目 / 实验 / 任务），可在 UI 中直接编辑 `.md` 记忆文件，Agent 每轮结束后自动刷新
+- 支持中英文界面切换（UI 右上角设置）
 - 8 种学术图表模板（柱状/折线/热力/箱线/散点/小提琴/堆叠/环形），一键生成 prompt
 - Agent 感知人工编辑：手工改动会自动通知 Agent，保持上下文同步
 
@@ -74,22 +87,25 @@ OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处
 
 Agent 不是黑盒——每次调用工具都以流式方式实时展示在 Chat 面板，你始终知道 Agent 在做什么、为什么这么做。
 
-Agent 具备完整的工具链（14 个工具），覆盖完整绘图流程：
+Agent 具备完整的工具链（19 个工具），覆盖完整绘图流程：
 
-- **数据层**：`inspect_data` 探索结构 → `query_data` 筛选 → `transform_data` 清洗（支持 12+ 种转换）→ `write_data` 落盘
-- **执行层**：`execute_python` 在沙箱中运行代码 → `render_chart` 重新渲染 SVG → `install_package` 动态安装依赖
+- **数据层**：`summarize_data` 快速摘要 → `inspect_data` 探索结构 → `recommend_charts` 推荐图表类型 → `query_data` 筛选 → `transform_data` 清洗（12+ 种转换）→ `write_data` 落盘
+- **执行层**：`execute_python` 在沙箱中运行代码 → `patch_config_prop` 安全修改 `@prop` 配置变量 → `render_chart` 重新渲染 SVG → `install_package` 动态安装依赖
 - **版本层**：`git_log` 查看历史 → `git_diff` 对比变更 → `git_restore` 回退文件
+- **记忆层**：`memory_read` 加载多层级上下文 → `memory_write` 持久化决策记录
+- **检索层**：`search_charts` 语义搜索历史图表代码
 
 工具调用过程、入参、输出均实时可见，支持中途干预——既能让 Agent 完整跑完，也能随时接管手工修改。
 
 ### Agent 持久化记忆
 
-Agent 在三个层级上积累经验，跨会话持续生效：
+Agent 在四个层级上积累经验，跨会话持续生效：
 
 | 层级 | 存储位置 | 记忆内容 |
 | --- | --- | --- |
 | **全局** | `~/.config/` | LLM 偏好、通用绘图习惯 |
 | **项目** | `PROJECT.md` | 期刊规范、配色约定、坐标轴偏好 |
+| **实验** | `EXPERIMENT.md` | 数据来源、实验背景、共享样式约定 |
 | **任务** | `TASK.md` | 数据决策、历次调整的设计理由 |
 
 同一个项目用得越久，Agent 对你的风格就越熟悉：不用重复解释期刊要求，不用每次指定字体，不用说明配色偏好。
@@ -248,7 +264,7 @@ export ANTHROPIC_API_KEY=your_api_key_here
 
 ```bash
 # 安装并启动 Ollama
-ollama pull qwen3:8b
+ollama pull qwen3.6:27b
 ollama serve
 ```
 
@@ -387,37 +403,43 @@ OpenPlotAgent 将科研绘图拆解为四步标准流程：
                         ├── processed/
                         │   └── data.csv    # 清洗后的数据（Agent 直接读取）
                         ├── chart/
-                        │   ├── data_prep.py  # Stage 1：数据加载与清洗
-                        │   ├── plot.py       # Stage 2：绘图代码（含 CHART CONFIG @prop 块）
-                        │   └── output.svg    # 渲染输出
-                        ├── chat_history.json # 持久化对话历史（跨页面刷新保留）
+                        │   ├── data_prep.py    # Stage 1：数据加载与清洗
+                        │   ├── plot.py         # Stage 2：绘图代码（含 CHART CONFIG @prop 块）
+                        │   └── output.svg      # 渲染输出
+                        ├── chat_history.json   # 持久化对话历史（跨页面刷新保留，含 thinking 块）
                         └── .plotsmith/
-                            └── context.json  # Agent 会话上下文
+                            └── context.json    # Agent 会话上下文（含历史工具调用）
 ```
 
 ---
 
 ## Agent 工具列表
 
-Agent 具备以下 14 个工具：
+Agent 具备以下 19 个工具：
 
 ### 数据处理工具
 | 工具 | 说明 |
 |------|------|
-| `inspect_data` | 预览文件结构、列名、数据类型、统计摘要 |
+| `summarize_data` | 快速概览文件列数、数据类型与分布摘要，适合探索阶段 |
+| `inspect_data` | 预览文件结构、列名、数据类型、统计摘要（详细版） |
+| `recommend_charts` | 根据数据列结构（分类/数值/时间）推荐 2-4 种适合的图表类型 |
 | `query_data` | 按列/条件筛选数据，支持限制返回行数 |
 | `transform_data` | 12+ 种转换操作（前向填充、转置、透视、融合、重命名、删除列、数值转换等） |
 | `write_data` | 将处理后的数据保存为 CSV |
+
+### 文件操作工具
+| 工具 | 说明 |
+|------|------|
 | `read_file` | 读取任意任务文件内容 |
 | `write_file` | 写入文件内容 |
 | `list_files` | 列出目录中的文件 |
-| `export_from_experiment` | 将实验级原始数据复制到任务级 |
 
 ### 图表生成工具
 | 工具 | 说明 |
 |------|------|
-| `execute_python` | 在项目沙盒中执行 Python 代码（30s 超时） |
+| `patch_config_prop` | 直接修改 `plot.py` 中的 `@prop` 配置变量并重新渲染（比 write_file 更安全） |
 | `render_chart` | 重新运行 `plot.py` 并返回 SVG |
+| `execute_python` | 在项目沙盒中执行 Python 代码（30s 超时） |
 | `install_package` | 动态安装 pip 包到项目虚拟环境 |
 
 ### Git 版本控制工具
@@ -426,6 +448,17 @@ Agent 具备以下 14 个工具：
 | `git_log` | 查看提交历史记录 |
 | `git_diff` | 对比两个版本的差异 |
 | `git_restore` | 将文件回退到指定提交版本 |
+
+### 记忆工具
+| 工具 | 说明 |
+|------|------|
+| `memory_read` | 读取持久化记忆（scope: global / project / experiment / task） |
+| `memory_write` | 向指定层级写入或追加记忆内容 |
+
+### RAG 工具
+| 工具 | 说明 |
+|------|------|
+| `search_charts` | 用语义相似度在历史生成的图表代码中搜索参考案例 |
 
 ---
 

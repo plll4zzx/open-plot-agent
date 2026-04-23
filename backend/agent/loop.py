@@ -114,9 +114,10 @@ Examples of when to use patch_config_prop:
   complex layout changes — those need write_file.
 
 ## Required workflow
-0. **Recall preferences** (first turn in a task only): call memory_read('global') and \
-memory_read('project') to pick up standing style/journal/palette preferences. \
-Skip if already read earlier in this conversation.
+0. **Recall context** (first turn only, or when starting a new task): call memory_read('task'), \
+memory_read('experiment'), memory_read('project'), and memory_read('global') in order \
+to load all persistent context — user preferences, journal requirements, past decisions. \
+On subsequent turns in the same conversation, skip scopes you already read.
 1. **Discover data**: call summarize_data("processed/data.csv") for a quick overview, \
 or inspect_data for column details. If it doesn't exist, \
 call summarize_data("raw/<filename>") to check available raw data.
@@ -127,7 +128,9 @@ upload or paste it.
 4. **Write both pipeline files** — data_prep.py first, then plot.py (see requirements below).
 5. **Execute**: execute_python(<plot.py content>) — fix any errors, update both files, re-run.
 6. **Self-check**: review validation warnings. Fix errors and re-run if needed.
-7. **Persist preferences** (optional): record lasting preferences with memory_write.
+7. **Persist to task memory** (when meaningful): if this turn produced a design decision, \
+user preference, or important finding, call memory_write('task', ...) to record it in \
+1-3 bullet points. Skip if the turn was purely exploratory or nothing noteworthy happened.
 
 ## Pipeline code requirements
 
@@ -513,8 +516,9 @@ class AgentLoop:
                         return
 
             if not pending_tool_calls:
-                # No tool calls and no Done — shouldn't happen, but exit safely
-                break
+                # Stream ended without a Done event or tool calls — surface the issue
+                await send(_ws_event("error", message="模型响应流异常结束（未收到完整响应），请重试。"))
+                return
 
             # Execute all pending tool calls, collecting results
             from agent.tools.base import missing_backend_dep_error
@@ -658,7 +662,7 @@ class AgentLoop:
             tool_rounds += 1
 
         # Hit round limit
-        await send(_ws_event("error", message=f"Exceeded max tool rounds ({max_tool_rounds}). Increase in Settings if needed."))
+        await send(_ws_event("error", message=f"已达到最大工具调用轮次（{max_tool_rounds} 轮）。如需更多轮次，请在设置中调整 max_tool_rounds。"))
         self._save_history()
 
     # ── Git debounce ───────────────────────────────────────────────────────

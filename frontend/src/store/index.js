@@ -252,4 +252,15 @@ export const useStore = create((set, get) => ({
     document.documentElement.setAttribute('data-theme', DARK_EDITOR_THEMES.has(theme) ? 'dark' : 'light')
     set({ editorTheme: theme })
   },
+
+  // ── Agent turn signal (incremented after each agent turn) ──
+  agentTurnCount: 0,
+  incrementAgentTurn: () => set(state => ({ agentTurnCount: state.agentTurnCount + 1 })),
+
+  // ── UI language ───────────────────────────────────────────
+  lang: localStorage.getItem('lang') || 'zh',
+  setLang: (lang) => {
+    localStorage.setItem('lang', lang)
+    set({ lang })
+  },
 }))

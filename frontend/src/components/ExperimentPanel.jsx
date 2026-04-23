@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Upload, Radio, X, Plus, ChevronDown } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 
 const API = ''
 
@@ -69,6 +70,7 @@ function ConditionRow({ headers, cond, onChange, onRemove }) {
 // ── Filter toolbar ────────────────────────────────────────────
 
 function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, onConditionsChange }) {
+  const t = useT()
   const addCondition = () => {
     if (!headers.length) return
     onConditionsChange([...conditions, { column: headers[0], op: '>', value: '' }])
@@ -80,7 +82,7 @@ function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, 
       {/* Column picker */}
       <div className="flex items-start gap-2">
         <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0, paddingTop: 2 }}>
-          列
+          {t('filterColLabel')}
         </span>
         {headers.length > 0
           ? <ColumnPicker headers={headers} selected={selectedColumns} onChange={onColumnsChange} />
@@ -98,7 +100,7 @@ function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, 
         <button onClick={addCondition} disabled={!headers.length}
           className="flex items-center gap-1 text-xs"
           style={{ color: '#7A99AE' }}>
-          <Plus size={10} />筛选行
+          <Plus size={10} />{t('filterRows')}
         </button>
       </div>
     </div>
@@ -109,6 +111,7 @@ function FilterToolbar({ headers, selectedColumns, onColumnsChange, conditions, 
 
 function DataTable({ headers, rows, selectedColumns, conditions }) {
   const [page, setPage] = useState(0)
+  const t = useT()
   const PAGE = 100
 
   // Client-side filter for display
@@ -144,7 +147,7 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
   if (!headers.length) {
     return (
       <div className="flex-1 flex items-center justify-center" style={{ color: '#9DB5C7', fontSize: 12 }}>
-        选择左侧文件预览数据
+        {t('selectFilePreview')}
       </div>
     )
   }
@@ -181,7 +184,7 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
       {/* Pagination + row count */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t flex-shrink-0"
         style={{ borderColor: '#CFE0ED', fontSize: 10.5, fontFamily: 'JetBrains Mono, monospace', color: '#7A99AE' }}>
-        <span>{filtered.length} 行（共 {rows.length} 行）</span>
+        <span>{t('filteredRowsCount', { n: filtered.length, m: rows.length })}</span>
         {totalPages > 1 && (
           <div className="flex items-center gap-1.5">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
@@ -200,6 +203,7 @@ function DataTable({ headers, rows, selectedColumns, conditions }) {
 
 function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, conditions, headers }) {
   const { activeProjectId, activeExperimentId, createTask } = useStore()
+  const t = useT()
   const [targetTaskId, setTargetTaskId] = useState('')
   const [newTaskName, setNewTaskName] = useState('')
   const [showNew, setShowNew] = useState(false)
@@ -248,9 +252,9 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
         }
       )
       const d = await r.json()
-      setResult(d.ok ? `✓ 已导出 ${d.rows_exported} 行到 ${tid}/processed/data.csv` : '导出失败')
+      setResult(d.ok ? t('exportedRows', { n: d.rows_exported, path: `${tid}/processed/data.csv` }) : t('exportFailed'))
     } catch {
-      setResult('导出失败，请检查后端')
+      setResult(t('exportFailedBackend'))
     } finally {
       setExporting(false)
     }
@@ -263,26 +267,26 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
       style={{ borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.6)' }}>
       <div className="flex items-center gap-2">
         <span style={{ fontSize: 10, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>
-          导出到
+          {t('exportTo')}
         </span>
         {!showNew ? (
           <>
             <select value={targetTaskId} onChange={e => setTargetTaskId(e.target.value)}
               className="flex-1 rounded px-1.5 py-0.5 outline-none"
               style={{ fontSize: 11, border: '1px solid #BDCFDF', background: '#FFFFFF', color: '#1F3547', fontFamily: 'JetBrains Mono, monospace' }}>
-              <option value="">选择任务…</option>
+              <option value="">{t('selectTask')}</option>
               {tasks.map(t => <option key={t.task_id} value={t.task_id}>{t.task_id}</option>)}
             </select>
             <button onClick={() => { setShowNew(true); setTargetTaskId('') }}
               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs flex-shrink-0"
               style={{ border: '1px solid #BDCFDF', color: '#4A6478' }}>
-              <Plus size={10} />新建
+              <Plus size={10} />{t('newLabel')}
             </button>
           </>
         ) : (
           <>
             <input value={newTaskName} onChange={e => setNewTaskName(e.target.value)}
-              placeholder="任务名称"
+              placeholder={t('taskName')}
               autoFocus
               className="flex-1 rounded px-1.5 py-0.5 outline-none"
               style={{ fontSize: 11, border: '1px solid #1A2B3C', background: '#FFFFFF', color: '#1A2B3C', fontFamily: 'JetBrains Mono, monospace' }} />
@@ -297,7 +301,7 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
 
       <div className="flex items-center gap-2">
         <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
-          {filteredCount} 行
+          {t('rowCount', { n: filteredCount })}
           {selectedFile ? ` · ${selectedFile}` : ''}
         </span>
         <button
@@ -308,7 +312,7 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
             background: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#CFE0ED' : '#1A2B3C',
             color: exporting || !selectedFile || (!targetTaskId && !showNew) ? '#7A99AE' : '#EBF4FA',
           }}>
-          {exporting ? '导出中…' : '导出到任务 ▶'}
+          {exporting ? t('exporting') : t('exportToTask')}
         </button>
       </div>
 
@@ -325,6 +329,7 @@ function ExportBar({ tasks, filteredCount, selectedFile, selectedColumns, condit
 
 export function ExperimentPanel() {
   const { activeProjectId, activeExperimentId, tasks } = useStore()
+  const t = useT()
   const [files, setFiles] = useState([])
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewData, setPreviewData] = useState({ headers: [], rows: [] })
@@ -397,7 +402,7 @@ export function ExperimentPanel() {
           <div className="flex gap-2 px-3 py-2.5 border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
             <label className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md cursor-pointer"
               style={{ fontSize: 11.5, border: '1px solid #BDCFDF', color: '#1F3547' }}>
-              <Upload size={11} />上传文件
+              <Upload size={11} />{t('uploadFile')}
               <input type="file" multiple className="hidden"
                 onChange={e => Array.from(e.target.files).forEach(upload)} />
             </label>
@@ -411,7 +416,7 @@ export function ExperimentPanel() {
                 background: ingestActive ? 'rgba(26,125,196,0.06)' : 'transparent',
               }}>
               <Radio size={11} />
-              {ingestActive ? '接收中…' : '实时接收'}
+              {ingestActive ? t('receiving') : t('liveReceive')}
             </button>
           </div>
 
@@ -419,7 +424,7 @@ export function ExperimentPanel() {
           <div className="flex-1 overflow-y-auto py-1">
             {files.length === 0 ? (
               <div className="flex items-center justify-center h-full" style={{ color: '#9DB5C7', fontSize: 12 }}>
-                还没有原始数据文件
+                {t('noRawData')}
               </div>
             ) : (
               files.map(f => (
@@ -456,7 +461,7 @@ export function ExperimentPanel() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: '#4A6478' }}>
-                等待数据流接入…
+                {t('waitingForStream')}
               </div>
             </div>
           ) : (
@@ -473,7 +478,7 @@ export function ExperimentPanel() {
               {/* Data table */}
               {loadingPreview ? (
                 <div className="flex-1 flex items-center justify-center pulse-soft" style={{ color: '#7A99AE', fontSize: 12 }}>
-                  加载中…
+                  {t('loading')}
                 </div>
               ) : (
                 <DataTable

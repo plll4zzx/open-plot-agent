@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Upload, ArrowLeftRight, RefreshCw, Play, RotateCw, Plus, MessageSquare } from 'lucide-react'
 import { useStore } from '../store'
+import { useT } from '../i18n'
 import { CodeEditor } from './CodeEditor'
 import { DataGrid } from './DataGrid'
 
@@ -25,6 +26,7 @@ function inferType(vals) {
 
 function SendSelectionButton({ getSelection, onStage, hasSelection: externalHasSelection }) {
   const [browserHasSelection, setBrowserHasSelection] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     const check = () => {
@@ -53,7 +55,7 @@ function SendSelectionButton({ getSelection, onStage, hasSelection: externalHasS
         border: '1px solid rgba(255,255,255,0.1)',
       }}>
       <MessageSquare size={11} />
-      添加到对话框
+      {t('addToChat')}
     </button>
   )
 }
@@ -62,6 +64,7 @@ function SendSelectionButton({ getSelection, onStage, hasSelection: externalHasS
 
 export function ProcessedTab({ onTableReady, onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId } = useStore()
+  const t = useT()
   const [rows, setRows] = useState([])
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -162,10 +165,10 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
         onClick={() => pasteRef.current?.focus()}
       >
         <span style={{ fontSize: 16 }}>📋</span>
-        <span>从 Excel / Numbers 粘贴</span>
+        <span>{t('pasteFromExcel')}</span>
         <label className="ml-auto flex items-center gap-1 cursor-pointer" style={{ color: '#7A99AE', fontSize: 11 }}>
           <Upload size={11} />
-          <span>上传文件</span>
+          <span>{t('uploadFile')}</span>
           <input type="file" accept=".csv,.tsv,.xlsx,.json" className="hidden"
             onChange={async (e) => {
               const file = e.target.files[0]
@@ -179,34 +182,34 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
 
       {rows.length === 0 ? (
         <div className="flex-1 flex items-center justify-center" style={{ color: '#9DB5C7', fontSize: 12 }}>
-          粘贴数据后在此显示
+          {t('pasteHere')}
         </div>
       ) : (
         <>
           {/* Toolbar */}
           <div className="flex items-center gap-2 px-4 mb-1">
             <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>
-              {body.length} 行 × {header.length} 列
+              {t('rowColCount', { rows: body.length, cols: header.length })}
             </span>
             <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
-              双击编辑 · Shift+点击扩选 · ⌘C/⌘V
+              {t('editHint')}
             </span>
-            <button onClick={addRow} title="新增一行"
+            <button onClick={addRow} title={t('addRow')}
               className="ml-auto flex items-center gap-0.5 px-1.5 h-6 rounded"
               style={{ fontSize: 10.5, color: '#4A6478', border: '1px solid #CFE0ED', fontFamily: 'JetBrains Mono, monospace' }}>
-              <Plus size={10} />行
+              <Plus size={10} />{t('rowLabel')}
             </button>
-            <button onClick={addCol} title="新增一列"
+            <button onClick={addCol} title={t('addCol')}
               className="flex items-center gap-0.5 px-1.5 h-6 rounded"
               style={{ fontSize: 10.5, color: '#4A6478', border: '1px solid #CFE0ED', fontFamily: 'JetBrains Mono, monospace' }}>
-              <Plus size={10} />列
+              <Plus size={10} />{t('colLabel')}
             </button>
-            <button onClick={transpose} title="转置"
+            <button onClick={transpose} title={t('transpose')}
               className="w-6 h-6 flex items-center justify-center rounded"
               style={{ color: '#4A6478', border: '1px solid #CFE0ED' }}>
               <ArrowLeftRight size={11} />
             </button>
-            <button onClick={() => { setRows([]); setSaved(false) }} title="清空"
+            <button onClick={() => { setRows([]); setSaved(false) }} title={t('clearAll')}
               className="w-6 h-6 flex items-center justify-center rounded"
               style={{ color: '#4A6478', border: '1px solid #CFE0ED' }}>
               <RefreshCw size={11} />
@@ -241,7 +244,7 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
               color: '#B91C1C',
             }}
           >
-            保存失败：{saveError}
+            {t('saveFailedDetail', { error: saveError })}
           </div>
         )}
         {rows.length > 0 && (
@@ -251,7 +254,7 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
               border: '1px solid #BDCFDF', color: saved ? '#1A7DC4' : '#1F3547',
               background: saved ? 'rgba(26,125,196,0.06)' : 'transparent'
             }}>
-            {saved ? '✓ 已保存' : '保存到 processed/data.csv'}
+            {saved ? t('savedCheck') : t('saveToCsv')}
           </button>
         )}
       </div>
@@ -274,6 +277,7 @@ const PLACEHOLDERS = {
 
 export function ScriptTab({ onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, fetchSvg, fetchGitLog } = useStore()
+  const t = useT()
   const [activeFile, setActiveFile] = useState('plot')
   const [codes, setCodes] = useState({ data_prep: '', plot: '' })
   const [savedCodes, setSavedCodes] = useState({ data_prep: '', plot: '' })
@@ -338,13 +342,13 @@ export function ScriptTab({ onStageToChat }) {
       )
       if (r.ok) {
         setSavedCodes(prev => ({ ...prev, [activeFile]: code }))
-        setOutput({ ok: true, text: '已保存' })
+        setOutput({ ok: true, text: t('saved') })
         fetchGitLog()
       } else {
-        setOutput({ ok: false, text: '保存失败' })
+        setOutput({ ok: false, text: t('saveFailed') })
       }
     } catch {
-      setOutput({ ok: false, text: '无法连接到后端' })
+      setOutput({ ok: false, text: t('backendError') })
     } finally {
       setSaving(false)
     }
@@ -360,15 +364,15 @@ export function ScriptTab({ onStageToChat }) {
         { method: 'GET' }
       )
       if (r.ok) {
-        setOutput({ ok: true, text: '运行成功，预览已更新' })
+        setOutput({ ok: true, text: t('runSuccess') })
         fetchSvg()
         fetchGitLog()
       } else {
         const d = await r.json().catch(() => ({}))
-        setOutput({ ok: false, text: d.detail || '运行失败' })
+        setOutput({ ok: false, text: d.detail || t('runFailed') })
       }
     } catch {
-      setOutput({ ok: false, text: '无法连接到后端' })
+      setOutput({ ok: false, text: t('backendError') })
     } finally {
       setRunning(false)
     }
@@ -402,10 +406,10 @@ export function ScriptTab({ onStageToChat }) {
         <div className="flex items-center justify-between px-4 py-1.5">
           <div className="flex items-center gap-2">
             {isModified && (
-              <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+              <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>{t('unsaved')}</span>
             )}
             <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
-              ⌘F 查找 · ⌘S 保存
+              {t('findSaveHint')}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -413,7 +417,7 @@ export function ScriptTab({ onStageToChat }) {
               <button onClick={saveCode} disabled={saving}
                 className="flex items-center gap-1 px-2 py-1 rounded-md"
                 style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
-                {saving ? '保存中…' : '保存'}
+                {saving ? t('saving') : t('save')}
               </button>
             )}
             {fileMeta.canRun && (
@@ -421,7 +425,7 @@ export function ScriptTab({ onStageToChat }) {
                 className="flex items-center gap-1 px-2 py-1 rounded-md"
                 style={{ fontSize: 11, background: running ? '#CFE0ED' : '#1A2B3C', color: running ? '#7A99AE' : '#EBF4FA' }}>
                 {running ? <RotateCw size={10} className="spin" /> : <Play size={10} />}
-                {running ? '运行中…' : '▶ 运行'}
+                {running ? t('running') : t('run')}
               </button>
             )}
           </div>
@@ -445,7 +449,7 @@ export function ScriptTab({ onStageToChat }) {
           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md z-10 transition-all"
           style={{ fontSize: 11, background: '#1A2B3C', color: '#EBF4FA', border: '1px solid rgba(255,255,255,0.1)' }}>
           <MessageSquare size={11} />
-          添加到对话框
+          {t('addToChat')}
         </button>
       )}
 
