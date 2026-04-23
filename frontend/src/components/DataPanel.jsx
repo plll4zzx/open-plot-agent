@@ -23,19 +23,20 @@ function inferType(vals) {
 
 // ── "Send to Agent" floating button ──────────────────────────
 
-function SendSelectionButton({ getSelection, onStage }) {
-  const [hasSelection, setHasSelection] = useState(false)
+function SendSelectionButton({ getSelection, onStage, hasSelection: externalHasSelection }) {
+  const [browserHasSelection, setBrowserHasSelection] = useState(false)
 
   useEffect(() => {
     const check = () => {
       const sel = window.getSelection()
-      setHasSelection(sel && sel.toString().trim().length > 0)
+      setBrowserHasSelection(!!(sel && sel.toString().trim().length > 0))
     }
     document.addEventListener('selectionchange', check)
     return () => document.removeEventListener('selectionchange', check)
   }, [])
 
-  if (!hasSelection) return null
+  const visible = externalHasSelection !== undefined ? externalHasSelection : browserHasSelection
+  if (!visible) return null
 
   const handleClick = () => {
     const text = getSelection()
@@ -143,20 +144,7 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
     }
   }
 
-  // Get text selection from the table area — tag it with the CSV path so the
-  // agent knows what file it came from.
-  const getTableSelection = useCallback(() => {
-    const sel = window.getSelection()
-    if (!sel || !sel.toString().trim()) return null
-    const text = sel.toString().trim()
-    return `<table_selection source="processed/data.csv">\n${text}\n</table_selection>`
-  }, [])
-
-  const stageSelection = useCallback((text) => {
-    if (onStageToChat && text) {
-      onStageToChat(text)
-    }
-  }, [onStageToChat])
+  const [gridSelText, setGridSelText] = useState('')
 
   const header = rows[0] ?? []
   const body = rows.slice(1)
@@ -229,14 +217,15 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
           <div className="flex-1 overflow-hidden mx-4 mb-3 rounded-md border"
             style={{ borderColor: '#CFE0ED', background: '#FFFFFF', display: 'block', position: 'relative' }}>
             <div style={{ position: 'absolute', inset: 0 }}>
-              <DataGrid rows={rows} onChange={handleGridChange} types={types} />
+              <DataGrid rows={rows} onChange={handleGridChange} types={types} onSelectionChange={setGridSelText} />
             </div>
           </div>
 
           {/* Send selection button */}
           <SendSelectionButton
-            getSelection={getTableSelection}
-            onStage={stageSelection}
+            getSelection={() => gridSelText.trim() ? `<table_selection source="processed/data.csv">\n${gridSelText.trim()}\n</table_selection>` : null}
+            hasSelection={!!gridSelText.trim()}
+            onStage={(text) => onStageToChat?.(text)}
           />
         </>
       )}
@@ -271,40 +260,76 @@ export function ProcessedTab({ onTableReady, onStageToChat }) {
 }
 
 
-// ── ScriptTab — editable chart/plot.py, refreshes when SVG updates ──────────
+// ── ScriptTab — two-stage pipeline: data_prep.py + plot.py ──────────────────
+
+const SCRIPT_FILES = [
+  { key: 'data_prep', path: 'chart/data_prep.py', label: 'data_prep.py', canRun: false },
+  { key: 'plot',      path: 'chart/plot.py',      label: 'plot.py',      canRun: true },
+]
+
+const PLACEHOLDERS = {
+  'chart/data_prep.py': '# chart/data_prep.py 尚未生成\n# Agent 将在此实现 get_data() 函数',
+  'chart/plot.py':      '# chart/plot.py 尚未生成\n# 在右侧对话框告诉 agent 你想要什么图',
+}
 
 export function ScriptTab({ onStageToChat }) {
   const { activeProjectId, activeExperimentId, activeTaskId, svgContent, fetchSvg, fetchGitLog } = useStore()
-  const [code, setCode] = useState('')
-  const [savedCode, setSavedCode] = useState('')  // track what's on disk
+  const [activeFile, setActiveFile] = useState('plot')
+  const [codes, setCodes] = useState({ data_prep: '', plot: '' })
+  const [savedCodes, setSavedCodes] = useState({ data_prep: '', plot: '' })
   const [running, setRunning] = useState(false)
   const [saving, setSaving] = useState(false)
   const [output, setOutput] = useState(null)
   const [monacoSelection, setMonacoSelection] = useState('')
 
+  const fileMeta = SCRIPT_FILES.find(f => f.key === activeFile)
+  const code = codes[activeFile] ?? ''
+  const savedCode = savedCodes[activeFile] ?? ''
   const isModified = code !== savedCode
 
+  // Load both files when task changes
   useEffect(() => {
     if (!activeProjectId || !activeExperimentId || !activeTaskId) return
-    fetch(`${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/chart/plot.py`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        const content = d?.content ?? '# chart/plot.py 尚未生成\n# 在右侧对话框告诉 agent 你想要什么图'
-        setCode(content)
-        setSavedCode(content)
-      })
-      .catch(() => {
-        setCode('# 未找到 plot.py')
-        setSavedCode('# 未找到 plot.py')
-      })
-  }, [activeProjectId, activeExperimentId, activeTaskId, svgContent])
+    setOutput(null)
+    setMonacoSelection('')
+    const base = `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files`
+    SCRIPT_FILES.forEach(({ key, path }) => {
+      fetch(`${base}/${path}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          const content = d?.content ?? PLACEHOLDERS[path]
+          setCodes(prev => ({ ...prev, [key]: content }))
+          setSavedCodes(prev => ({ ...prev, [key]: content }))
+        })
+        .catch(() => {
+          const content = PLACEHOLDERS[path]
+          setCodes(prev => ({ ...prev, [key]: content }))
+          setSavedCodes(prev => ({ ...prev, [key]: content }))
+        })
+    })
+  }, [activeProjectId, activeExperimentId, activeTaskId])
+
+  // Reload plot.py when SVG updates (agent may have rewritten it)
+  useEffect(() => {
+    if (!activeProjectId || !activeExperimentId || !activeTaskId || !svgContent) return
+    SCRIPT_FILES.forEach(({ key, path }) => {
+      fetch(`${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/${path}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d?.content) return
+          setCodes(prev => ({ ...prev, [key]: d.content }))
+          setSavedCodes(prev => ({ ...prev, [key]: d.content }))
+        })
+        .catch(() => {})
+    })
+  }, [svgContent])
 
   const saveCode = async () => {
     if (!activeProjectId || !activeExperimentId || !activeTaskId) return
     setSaving(true)
     try {
       const r = await fetch(
-        `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/chart/plot.py`,
+        `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/files/${fileMeta.path}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -312,7 +337,7 @@ export function ScriptTab({ onStageToChat }) {
         }
       )
       if (r.ok) {
-        setSavedCode(code)
+        setSavedCodes(prev => ({ ...prev, [activeFile]: code }))
         setOutput({ ok: true, text: '已保存' })
         fetchGitLog()
       } else {
@@ -326,7 +351,6 @@ export function ScriptTab({ onStageToChat }) {
   }
 
   const run = async () => {
-    // Auto-save before running if modified
     if (isModified) await saveCode()
     setRunning(true)
     setOutput(null)
@@ -351,50 +375,71 @@ export function ScriptTab({ onStageToChat }) {
   }
 
   const stageSelection = useCallback((text) => {
-    if (onStageToChat && text) {
-      onStageToChat(text)
-    }
+    if (onStageToChat && text) onStageToChat(text)
   }, [onStageToChat])
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
-        style={{ borderColor: '#CFE0ED' }}>
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 11, color: '#7A99AE', fontFamily: 'JetBrains Mono, monospace' }}>chart/plot.py</span>
-          {isModified && (
-            <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
-          )}
-          <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
-            ⌘F 查找 · ⌘H 替换 · ⌘S 保存
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {isModified && (
-            <button onClick={saveCode} disabled={saving}
-              className="flex items-center gap-1 px-2 py-1 rounded-md"
-              style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
-              {saving ? '保存中…' : '保存'}
+      {/* File tabs + toolbar */}
+      <div className="border-b flex-shrink-0" style={{ borderColor: '#CFE0ED' }}>
+        <div className="flex items-center px-2 pt-1">
+          {SCRIPT_FILES.map(f => (
+            <button key={f.key}
+              onClick={() => { setActiveFile(f.key); setOutput(null); setMonacoSelection('') }}
+              className="px-3 py-1.5 transition"
+              style={{
+                fontSize: 10.5,
+                fontFamily: 'JetBrains Mono, monospace',
+                color: activeFile === f.key ? '#1A2B3C' : '#7A99AE',
+                fontWeight: activeFile === f.key ? 600 : 400,
+                borderBottom: activeFile === f.key ? '2px solid #1A2B3C' : '2px solid transparent',
+                marginBottom: -1,
+              }}>
+              {f.label}
             </button>
-          )}
-          <button onClick={run} disabled={running}
-            className="flex items-center gap-1 px-2 py-1 rounded-md"
-            style={{ fontSize: 11, background: running ? '#CFE0ED' : '#1A2B3C', color: running ? '#7A99AE' : '#EBF4FA' }}>
-            {running ? <RotateCw size={10} className="spin" /> : <Play size={10} />}
-            {running ? '运行中…' : '▶ 运行'}
-          </button>
+          ))}
         </div>
-      </div>
-      <div className="flex-1 flex overflow-hidden">
-        <CodeEditor value={code} onChange={setCode} onSave={saveCode} onSelectionChange={setMonacoSelection} />
+        <div className="flex items-center justify-between px-4 py-1.5">
+          <div className="flex items-center gap-2">
+            {isModified && (
+              <span style={{ fontSize: 9, color: '#1668A8', fontFamily: 'JetBrains Mono, monospace' }}>● 未保存</span>
+            )}
+            <span style={{ fontSize: 10, color: '#9DB5C7', fontFamily: 'JetBrains Mono, monospace' }}>
+              ⌘F 查找 · ⌘S 保存
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isModified && (
+              <button onClick={saveCode} disabled={saving}
+                className="flex items-center gap-1 px-2 py-1 rounded-md"
+                style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#1F3547' }}>
+                {saving ? '保存中…' : '保存'}
+              </button>
+            )}
+            {fileMeta.canRun && (
+              <button onClick={run} disabled={running}
+                className="flex items-center gap-1 px-2 py-1 rounded-md"
+                style={{ fontSize: 11, background: running ? '#CFE0ED' : '#1A2B3C', color: running ? '#7A99AE' : '#EBF4FA' }}>
+                {running ? <RotateCw size={10} className="spin" /> : <Play size={10} />}
+                {running ? '运行中…' : '▶ 运行'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Monaco selection → Add to chat */}
+      <div className="flex-1 flex overflow-hidden">
+        <CodeEditor value={code}
+          onChange={v => setCodes(prev => ({ ...prev, [activeFile]: v }))}
+          onSave={saveCode}
+          onSelectionChange={setMonacoSelection} />
+      </div>
+
       {monacoSelection && (
         <button
           onMouseDown={(e) => {
             e.preventDefault()
-            const text = `<code_selection source="chart/plot.py">\n\`\`\`python\n${monacoSelection}\n\`\`\`\n</code_selection>`
+            const text = `<code_selection source="${fileMeta.path}">\n\`\`\`python\n${monacoSelection}\n\`\`\`\n</code_selection>`
             stageSelection(text)
           }}
           className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg shadow-md z-10 transition-all"

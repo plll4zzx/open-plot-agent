@@ -939,6 +939,161 @@ async def patch_code(project_id: str, experiment_id: str, task_id: str, req: Pat
     }
 
 
+# ── CONFIG props: read parsed @prop metadata for the Properties panel ──────
+
+@app.get("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/config-props")
+async def get_config_props(project_id: str, experiment_id: str, task_id: str):
+    """
+    Return the parsed CHART CONFIG properties from chart/plot.py.
+    Used by the frontend Properties panel to render controls and read current values.
+    """
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    plot_py = task_dir / "chart" / "plot.py"
+    if not plot_py.exists():
+        return {"ok": False, "props": {}, "error": "plot.py not found"}
+
+    from agent.config_block import config_block_present, parse_props, props_to_api_dict
+    code = plot_py.read_text()
+    if not config_block_present(code):
+        return {"ok": False, "props": {}, "error": "No CHART CONFIG block in plot.py"}
+
+    props = parse_props(code)
+    return {"ok": True, "props": props_to_api_dict(props)}
+
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/config-props")
+async def patch_config_prop_api(
+    project_id: str, experiment_id: str, task_id: str, body: dict
+):
+    """
+    Patch a single CONFIG property directly from the frontend Properties panel.
+    Body: { "key": "bar_alpha", "value": "0.7" }
+    Re-executes plot.py and returns the new SVG.
+    """
+    key = body.get("key", "")
+    value = body.get("value", "")
+    if not key or value == "":
+        raise HTTPException(400, "Both 'key' and 'value' are required")
+
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    plot_py = task_dir / "chart" / "plot.py"
+    if not plot_py.exists():
+        return {"ok": False, "error": "plot.py not found"}
+
+    from agent.config_block import config_block_present, parse_props, patch_prop
+    code = plot_py.read_text()
+
+    if not config_block_present(code):
+        return {"ok": False, "error": "No CHART CONFIG block in plot.py"}
+
+    props = parse_props(code)
+    prop_keys = {p.key for p in props}
+    if key not in prop_keys:
+        return {"ok": False, "error": f"'{key}' is not a declared @prop. Available: {sorted(prop_keys)}"}
+
+    success, patched_code, message = patch_prop(code, key, value)
+    if not success:
+        return {"ok": False, "error": message}
+
+    plot_py.write_text(patched_code)
+
+    runner = SandboxRunner(project_id, experiment_id, task_id)
+    exec_result = await runner.render_chart()
+    if exec_result.returncode != 0:
+        plot_py.write_text(code)  # rollback
+        return {
+            "ok": False,
+            "error": f"Execution failed after patch — rolled back. {exec_result.stderr[:300]}",
+        }
+
+    svg_path = task_dir / "chart" / "output.svg"
+    svg_content = svg_path.read_text() if svg_path.exists() else None
+
+    gm = GitManager(PROJECTS_ROOT / project_id)
+    await gm.auto_commit(f"prop: {key} = {value}")
+
+    # Return the updated prop entry so the frontend can patch local state
+    # without triggering a full re-fetch of the Properties panel.
+    from agent.config_block import props_to_api_dict
+    updated_props = parse_props(patched_code)
+    updated_prop_entry = props_to_api_dict(
+        [p for p in updated_props if p.key == key]
+    ).get(key)
+
+    return {
+        "ok": True,
+        "message": message,
+        "svg_content": svg_content,
+        "prop": updated_prop_entry,
+    }
+
+
+# ── Auto-render: re-run plot.py if SVG is missing or stale ─────────────────
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/chart/auto-render")
+async def auto_render_chart(project_id: str, experiment_id: str, task_id: str):
+    """
+    Called when a task is opened. If output.svg is missing or older than plot.py,
+    re-execute plot.py and return the SVG. If SVG is already fresh, just return it.
+    Returns {"ok": False} when plot.py doesn't exist yet (brand-new task).
+    """
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    plot_py = task_dir / "chart" / "plot.py"
+    svg_path = task_dir / "chart" / "output.svg"
+
+    if not plot_py.exists():
+        return {"ok": False, "rendered": False, "error": "no plot.py"}
+
+    needs_render = (
+        not svg_path.exists()
+        or svg_path.stat().st_mtime < plot_py.stat().st_mtime
+    )
+
+    if needs_render:
+        runner = SandboxRunner(project_id, experiment_id, task_id)
+        exec_result = await runner.render_chart()
+        if exec_result.returncode != 0:
+            return {
+                "ok": False,
+                "rendered": True,
+                "error": exec_result.stderr[:400],
+            }
+
+    svg_content = svg_path.read_text() if svg_path.exists() else None
+    return {"ok": True, "rendered": needs_render, "svg_content": svg_content}
+
+
+# ── Chat history: persist per-task conversation to disk ─────────────────────
+
+class ChatHistoryBody(BaseModel):
+    messages: list[dict]
+
+CHAT_HISTORY_ROLES = {"user", "agent", "tool_call", "tool_result", "error"}
+
+@app.get("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/chat-history")
+async def get_chat_history(project_id: str, experiment_id: str, task_id: str):
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    history_file = task_dir / "chat_history.json"
+    if not history_file.exists():
+        return {"ok": True, "messages": []}
+    try:
+        messages = json.loads(history_file.read_text())
+        return {"ok": True, "messages": messages}
+    except Exception:
+        return {"ok": True, "messages": []}
+
+
+@app.post("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/chat-history")
+async def save_chat_history(project_id: str, experiment_id: str, task_id: str, body: ChatHistoryBody):
+    task_dir = PROJECTS_ROOT / project_id / "experiments" / experiment_id / "tasks" / task_id
+    task_dir.mkdir(parents=True, exist_ok=True)
+    # Only persist meaningful roles — skip ephemeral system/thinking/context_notice messages
+    to_save = [m for m in body.messages if m.get("role") in CHAT_HISTORY_ROLES]
+    history_file = task_dir / "chat_history.json"
+    history_file.write_text(json.dumps(to_save, ensure_ascii=False, indent=2))
+    return {"ok": True, "saved": len(to_save)}
+
+
 # ── PDF export ─────────────────────────────────────────────────────────────
 
 @app.get("/api/projects/{project_id}/experiments/{experiment_id}/tasks/{task_id}/chart/export-pdf")

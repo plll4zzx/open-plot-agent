@@ -94,24 +94,35 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
 
   const svgSize = useMemo(() => parseSvgSize(svgContent), [svgContent])
 
+  // Keep svgSize in a ref so computeFit is a stable function.
+  // Without this, computeFit changes on every svgContent update, causing
+  // the ResizeObserver useEffect to re-create and immediately fire setZoom,
+  // which causes an extra paint cycle after every property edit.
+  const svgSizeRef = useRef(svgSize)
+  useLayoutEffect(() => { svgSizeRef.current = svgSize }, [svgSize])
+
   // ── Compute a fit ratio relative to the scroll area ──────────────────
   const computeFit = useCallback((mode) => {
     const scroll = scrollRef.current
-    if (!scroll || !svgSize) return 1
+    const size = svgSizeRef.current
+    if (!scroll || !size) return 1
     const padding = 32
     const availW = scroll.clientWidth - padding
     const availH = scroll.clientHeight - padding
     if (availW <= 0 || availH <= 0) return 1
-    if (mode === 'width') return availW / svgSize.w
-    if (mode === 'height') return availH / svgSize.h
-    if (mode === 'page') return Math.min(availW / svgSize.w, availH / svgSize.h)
+    if (mode === 'width') return availW / size.w
+    if (mode === 'height') return availH / size.h
+    if (mode === 'page') return Math.min(availW / size.w, availH / size.h)
     return 1
-  }, [svgSize])
+  }, []) // stable — reads from ref, no deps
 
+  // Auto-fit only when the task changes (opening a new chart), not on every
+  // property edit. Property edits rarely change SVG dimensions, and even when
+  // they do (e.g. figsize), preserving zoom is better UX than a sudden re-fit.
   useLayoutEffect(() => {
     if (fitMode === 'manual') return
     setZoom(computeFit(fitMode))
-  }, [svgContent, fitMode, computeFit])
+  }, [activeTaskId, fitMode, computeFit])
 
   useEffect(() => {
     if (fitMode === 'manual' || !scrollRef.current) return
@@ -152,6 +163,21 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
   const zoomIn = () => { setZoom(z => Math.min(ZOOM_MAX, z * ZOOM_STEP)); setFitMode('manual') }
   const zoomOut = () => { setZoom(z => Math.max(ZOOM_MIN, z / ZOOM_STEP)); setFitMode('manual') }
   const zoomReset = () => { setZoom(1); setFitMode('manual') }
+
+  // Ref for the SVG wrapper div — used for the fade-in animation on content change.
+  const svgWrapperRef = useRef(null)
+
+  // Fade in the new SVG content instead of hard-cutting.
+  // Web Animations API: opacity 0.4 → 1 over 140ms.
+  // This masks the one-frame DOM-replacement flash and any remaining
+  // intermediate render states from the zoom/dimension layoutEffects.
+  useEffect(() => {
+    if (!svgContent || !svgWrapperRef.current) return
+    svgWrapperRef.current.animate(
+      [{ opacity: 0.4 }, { opacity: 1 }],
+      { duration: 140, easing: 'ease-out', fill: 'forwards' },
+    )
+  }, [svgContent])
 
   // Inline-edit state for text elements (title/xlabel/ylabel/annotation_*)
   // { gid, x, y, width, height, value } — when set, we render a foreignObject overlay
@@ -720,6 +746,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
           }}
         >
         <div
+          ref={svgWrapperRef}
           className="contents"
           dangerouslySetInnerHTML={{ __html: svgContent }}
         />

@@ -52,9 +52,11 @@ OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处
 - 对话式绘图：用自然语言描述需求，Agent 自动完成数据探索、代码生成、图表渲染
 - 可视化接管：点击任意 SVG 元素直接修改颜色、字号、文字、线宽；双击标题/坐标轴标签在位编辑；拖拽图例到新位置；双击坐标轴快速设置 xlim/ylim
 - 一键切换配色方案（后端 `/palette` 直接改写 `plot.py`，无需 LLM），支持自定义调色板保存
-- Excel 风格数据表格：Shift+点击和拖拽选择区域、Ctrl+A/C/V/X、粘贴自动扩展维度、双击/Enter/F2 编辑
-- 代码编辑器：CodeMirror 6 + Python 语法高亮、行号、括号匹配、Ctrl+S 保存
-- 选中数据/代码片段"添加到对话框"（非直接发送），附带位置标注后由用户决定何时发送
+- **图表属性面板**：自动解析 `plot.py` 中的 `@prop` 注释，为标题、字号、颜色、图例、坐标范围等每个属性生成对应控件；每个属性带独立开关——关闭即从图中删除该元素（如关闭标题），开启后自动恢复；无需 LLM 即可直接微调图表
+- Excel 风格数据表格：鼠标拖拽选区、Shift+点击扩选、Ctrl+A/C/V 全选复制粘贴、点击行号选整行、点击列名选整列、双击编辑单元格、右键插入/删除行、右键列名排序
+- 代码编辑器：Monaco Editor + Python 语法高亮、行号、括号匹配、Ctrl+S 保存
+- 选中数据/代码片段"添加到对话框"（非直接发送），附带来源标注后由用户决定何时发送
+- 对话历史持久化：切换任务或刷新页面后恢复历史消息，每次打开任务自动渲染已有 `plot.py`
 - 三级记忆面板（全局 / 项目 / 实验 / 任务），可在 UI 中直接编辑 `.md` 记忆文件
 - 8 种学术图表模板（柱状/折线/热力/箱线/散点/小提琴/堆叠/环形），一键生成 prompt
 - Agent 感知人工编辑：手工改动会自动通知 Agent，保持上下文同步
@@ -140,7 +142,7 @@ Agent 在三个层级上积累经验，跨会话持续生效：
 | 框架 | React 19.2、Vite 8.0 |
 | 状态管理 | Zustand 5.0 |
 | 样式 | Tailwind CSS 4.2 |
-| 代码编辑器 | CodeMirror 6（`@codemirror/lang-python`） |
+| 代码编辑器 | Monaco Editor 4.7（`@monaco-editor/react`） |
 | 图标 | Lucide React 1.8 |
 | 字体 | Fraunces、Geist、JetBrains Mono、Cormorant Garamond |
 
@@ -169,10 +171,11 @@ open-plot-agent/
 │   │   │   ├── ChatPanel.jsx       # 对话面板（流式 + think 折叠 + 工具调用）
 │   │   │   ├── SvgPreview.jsx      # SVG 预览 + 缩放 + 拖拽编辑
 │   │   │   ├── ElementEditor.jsx   # 元素属性编辑器（颜色/字号/文字）
+│   │   │   ├── PropertiesPanel.jsx # 图表属性面板（@prop 解析 + 开关控件）
 │   │   │   ├── PalettePanel.jsx    # 配色方案面板（直接调用 /palette）
 │   │   │   ├── DataPanel.jsx       # 原始数据 + Processed + Script 标签页
-│   │   │   ├── DataGrid.jsx        # Excel 风格表格编辑器
-│   │   │   ├── CodeEditor.jsx      # CodeMirror 6 Python 编辑器
+│   │   │   ├── DataGrid.jsx        # 自定义电子表格（拖拽选区/行列选择/右键菜单）
+│   │   │   ├── CodeEditor.jsx      # Monaco Python 编辑器
 │   │   │   ├── MemoryPanel.jsx     # 三级记忆编辑面板
 │   │   │   ├── TemplatePanel.jsx   # 学术图表模板库
 │   │   │   ├── ExperimentPanel.jsx # 实验视图
@@ -303,7 +306,7 @@ OpenPlotAgent 将科研绘图拆解为四步标准流程：
 2. **上传数据** — 在 Experiment 面板上传原始数据文件（CSV、Excel、JSON 等）
 3. **创建任务** — 为每张图创建独立 Task，保持关注点分离
 4. **对话绘图** — 在 Chat 面板描述需求，Agent 自动完成数据探索、代码生成、图表渲染
-5. **可视化调整** — 点击 SVG 元素修改颜色/文字，或切换整体配色方案
+5. **可视化调整** — 在**图表属性**面板直接拨动开关调整标题/字号/图例等；点击 SVG 元素改颜色文字；或切换整体配色方案
 6. **导出发布** — 下载 SVG 或 PDF（PGF 格式，兼容 LaTeX）
 
 ---
@@ -334,6 +337,11 @@ OpenPlotAgent 将科研绘图拆解为四步标准流程：
 | `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chart/svg` | 获取当前 SVG |
 | `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/render` | 重新渲染图表 |
 | `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/palette` | 直接改写 `plot.py` 的配色（无需 LLM） |
+| `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/config-props` | 读取 `plot.py` 中所有 `@prop` 声明及当前值 |
+| `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/config-props` | 修改单个属性并重新渲染，返回新 SVG |
+| `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chart/auto-render` | 按需重渲染（`plot.py` 比 SVG 新时才重跑） |
+| `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chat-history` | 读取持久化对话历史 |
+| `POST` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chat-history` | 保存对话历史 |
 | `GET` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/chart/export-pdf` | 导出 PDF |
 | `GET`/`PUT` | `/api/projects/{pid}/experiments/{eid}/tasks/{tid}/files/{path}` | 读写任意任务文件（含 `TASK.md`、`chart/plot.py`） |
 
@@ -379,9 +387,12 @@ OpenPlotAgent 将科研绘图拆解为四步标准流程：
                         ├── processed/
                         │   └── data.csv    # 清洗后的数据（Agent 直接读取）
                         ├── chart/
-                        │   ├── plot.py     # 生成的 Matplotlib 代码
-                        │   └── output.svg  # 渲染输出
-                        └── conversations/  # 对话记录（JSON）
+                        │   ├── data_prep.py  # Stage 1：数据加载与清洗
+                        │   ├── plot.py       # Stage 2：绘图代码（含 CHART CONFIG @prop 块）
+                        │   └── output.svg    # 渲染输出
+                        ├── chat_history.json # 持久化对话历史（跨页面刷新保留）
+                        └── .plotsmith/
+                            └── context.json  # Agent 会话上下文
 ```
 
 ---

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   BarChart3, Plus, Search, Settings, ChevronRight,
   LayoutGrid, FileText, MessageSquare, Eye, EyeOff,
-  GitBranch, Clock, Check, ChevronDown, Pencil, Palette, Square,
+  GitBranch, Clock, Check, ChevronDown, Pencil, Palette, Square, SlidersHorizontal,
 } from 'lucide-react'
 import { useStore } from './store'
 import { useAgentChat } from './hooks/useAgentChat'
@@ -15,6 +15,7 @@ import { ExperimentPanel } from './components/ExperimentPanel'
 import { SettingsModal } from './components/SettingsModal'
 import { MemoryPanel } from './components/MemoryPanel'
 import { TemplatePanel } from './components/TemplatePanel'
+import { PropertiesPanel } from './components/PropertiesPanel'
 import './index.css'
 
 // ── Shared atoms ────────────────────────────────────────────
@@ -671,7 +672,7 @@ function DragHandle({ onDragStart }) {
 // ── Workspace ────────────────────────────────────────────────
 
 function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
-  const { activeExperimentId, activeTaskId, gitLog, fetchGitLog, appendChatDraft } = useStore()
+  const { activeExperimentId, activeTaskId, gitLog, fetchGitLog, fetchSvgOrRender, appendChatDraft } = useStore()
   const [provider, setProvider] = useState('ollama')
   const { messages, send, generating, stop } = useAgentChat(provider)
   const [rightTab, setRightTab] = useState('chat')
@@ -706,7 +707,10 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
     }
   }, [send, showToast])
 
-  useEffect(() => { fetchGitLog() }, [activeTaskId])
+  useEffect(() => {
+    fetchGitLog()
+    if (activeTaskId) fetchSvgOrRender()
+  }, [activeTaskId])
 
   const onElementClick = useCallback(({ gid, element, container }) => {
     setSelectedEl({ gid, element, container })
@@ -794,9 +798,17 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
             </div>
           </>
         )}
+        {rightTab === 'properties' && (
+          <>
+            <SectionHeader num="04" title="图表属性" />
+            <div className="flex-1 overflow-hidden">
+              <PropertiesPanel />
+            </div>
+          </>
+        )}
         {rightTab === 'palette' && (
           <>
-            <SectionHeader num="04" title="配色方案" />
+            <SectionHeader num="05" title="配色方案" />
             <div className="flex-1 overflow-hidden">
               <PalettePanel />
             </div>
@@ -804,7 +816,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'memory' && (
           <>
-            <SectionHeader num="05" title="记忆" />
+            <SectionHeader num="06" title="记忆" />
             <div className="flex-1 overflow-hidden">
               <MemoryPanel />
             </div>
@@ -812,7 +824,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'template' && (
           <>
-            <SectionHeader num="06" title="模板" />
+            <SectionHeader num="07" title="模板" />
             <div className="flex-1 overflow-hidden">
               <TemplatePanel onSendMessage={(msg) => { appendChatDraft(msg); setRightTab('chat') }} />
             </div>
@@ -820,7 +832,7 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
         )}
         {rightTab === 'history' && (
           <>
-            <SectionHeader num="07" title="历史" subtitle={`${gitLog.length} 个版本`} />
+            <SectionHeader num="08" title="历史" subtitle={`${gitLog.length} 个版本`} />
             <div className="flex-1 overflow-y-auto py-3">
               {gitLog.length === 0 && (
                 <div className="text-center py-10" style={{ fontSize: 12, color: '#9DB5C7' }}>暂无历史记录</div>
@@ -908,12 +920,13 @@ function WorkspaceView({ showToast, onNewExperiment, onNewTask }) {
       <div className="flex flex-col items-center gap-1 py-3 border-l flex-shrink-0"
         style={{ width: 48, borderColor: '#CFE0ED', background: 'rgba(255,255,255,0.3)' }}>
         {[
-          ['chat',     MessageSquare, '对话'],
-          ['edit',     Pencil,        '元素编辑'],
-          ['palette',  Palette,       '配色方案'],
-          ['memory',   FileText,      '记忆'],
-          ['template', LayoutGrid,    '模板'],
-          ['history',  Clock,         '历史'],
+          ['chat',       MessageSquare,    '对话'],
+          ['edit',       Pencil,           '元素编辑'],
+          ['properties', SlidersHorizontal,'属性'],
+          ['palette',    Palette,          '配色方案'],
+          ['memory',     FileText,         '记忆'],
+          ['template',   LayoutGrid,       '模板'],
+          ['history',    Clock,            '历史'],
         ].map(([id, Icon, label]) => (
           <button key={id} onClick={() => setRightTab(id)} title={label}
             className="w-9 h-9 flex items-center justify-center rounded-md transition relative"

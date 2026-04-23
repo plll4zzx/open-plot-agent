@@ -33,27 +33,58 @@ export function useAgentChat(provider = 'ollama') {
     setGenerating(false)
   }, [])
 
+  // ── Persist chat history to backend ──────────────────────────────────────
+  const saveHistory = useCallback(async (msgs, projectId, experimentId, taskId) => {
+    if (!projectId || !experimentId || !taskId) return
+    try {
+      await fetch(
+        `/api/projects/${projectId}/experiments/${experimentId}/tasks/${taskId}/chat-history`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: msgs }),
+        },
+      )
+    } catch { /* best-effort */ }
+  }, [])
+
   // ── Connect / reconnect when project+experiment+task+provider change ──────
   useEffect(() => {
     if (!activeProjectId || !activeExperimentId || !activeTaskId) return
 
     const taskId = activeTaskId  // capture for cleanup closure
-
-    // Restore saved session for this task
-    const saved = useStore.getState().chatSessions[taskId] || []
+    const projectId = activeProjectId
+    const experimentId = activeExperimentId
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${proto}//${window.location.host}/ws/${activeProjectId}/${activeExperimentId}/${taskId}?provider=${provider}`
+    const url = `${proto}//${window.location.host}/ws/${projectId}/${experimentId}/${taskId}?provider=${provider}`
 
     const ws = new WebSocket(url)
     wsRef.current = ws
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
+      // Load persisted history from backend, fall back to in-memory session cache
+      let history = []
+      try {
+        const r = await fetch(
+          `/api/projects/${projectId}/experiments/${experimentId}/tasks/${taskId}/chat-history`
+        )
+        if (r.ok) {
+          const data = await r.json()
+          if (data.ok && data.messages?.length) history = data.messages
+        }
+      } catch { /* ignore */ }
+
+      // Fall back to in-memory session if backend returned nothing
+      if (!history.length) {
+        history = useStore.getState().chatSessions[taskId] || []
+      }
+
       const systemMsg = {
         id: nextId(), role: 'system',
-        content: `已连接 · ${activeProjectId} / ${activeExperimentId} / ${taskId} · ${provider}`,
+        content: `已连接 · ${projectId} / ${experimentId} / ${taskId} · ${provider}`,
       }
-      setMessages([...saved, systemMsg])
+      setMessages([...history, systemMsg])
     }
 
     ws.onmessage = (e) => {
@@ -114,9 +145,11 @@ export function useAgentChat(provider = 'ollama') {
           break
 
         case 'done':
-          setMessages(prev =>
-            prev.map(m => m.role === 'thinking' && !m.complete ? { ...m, complete: true } : m)
-          )
+          setMessages(prev => {
+            const next = prev.map(m => m.role === 'thinking' && !m.complete ? { ...m, complete: true } : m)
+            saveHistory(next, projectId, experimentId, taskId)
+            return next
+          })
           setGenerating(false)
           fetchSvg()
           fetchGitLog()
@@ -125,11 +158,11 @@ export function useAgentChat(provider = 'ollama') {
           break
 
         case 'stopped':
-          setMessages(prev => [...prev, {
-            id: nextId(),
-            role: 'system',
-            content: '已停止生成',
-          }])
+          setMessages(prev => {
+            const next = [...prev, { id: nextId(), role: 'system', content: '已停止生成' }]
+            saveHistory(next, projectId, experimentId, taskId)
+            return next
+          })
           setGenerating(false)
           fetchSvg()
           fetchGitLog()
@@ -153,12 +186,15 @@ export function useAgentChat(provider = 'ollama') {
 
     return () => {
       ws.close()
-      // Save this task's messages before switching away
-      if (messagesRef.current.length > 0) {
-        useStore.getState().setChatSession(taskId, messagesRef.current)
+      const msgs = messagesRef.current
+      if (msgs.length > 0) {
+        // Keep in-memory session cache for fast restore within the same page session
+        useStore.getState().setChatSession(taskId, msgs)
+        // Persist to backend so history survives page refresh
+        saveHistory(msgs, projectId, experimentId, taskId)
       }
     }
-  }, [activeProjectId, activeExperimentId, activeTaskId, provider, wsKey])
+  }, [activeProjectId, activeExperimentId, activeTaskId, provider, wsKey, saveHistory])
 
   const send = useCallback((text) => {
     if (!text.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return

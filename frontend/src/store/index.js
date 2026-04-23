@@ -53,6 +53,7 @@ export const useStore = create((set, get) => ({
       activeTaskId: taskId,
       experiments: [],
       tasks: [],
+      svgContent: null,
     })
     if (!projectId) return
 
@@ -79,7 +80,10 @@ export const useStore = create((set, get) => ({
     }
   },
 
-  setActiveTask: (taskId) => set({ activeTaskId: taskId }),
+  setActiveTask: (taskId) => {
+    set({ activeTaskId: taskId, svgContent: null })
+    if (taskId) setTimeout(() => get().fetchSvgOrRender(), 0)
+  },
 
   setActiveExperiment: async (experimentId) => {
     const { activeProjectId } = get()
@@ -169,6 +173,39 @@ export const useStore = create((set, get) => ({
   },
 
   updateSvgContent: (svg) => set({ svgContent: svg }),
+
+  // Called whenever a task is opened. Re-runs plot.py if output.svg is missing
+  // or older than plot.py, then loads the SVG into the preview.
+  fetchSvgOrRender: async () => {
+    const { activeProjectId, activeExperimentId, activeTaskId } = get()
+    if (!activeProjectId || !activeExperimentId || !activeTaskId) return
+    set({ svgLoading: true })
+    try {
+      const r = await fetch(
+        `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/chart/auto-render`,
+        { method: 'POST' },
+      )
+      if (r.ok) {
+        const data = await r.json()
+        if (data.ok && data.svg_content) {
+          set({ svgContent: data.svg_content })
+          return
+        }
+      }
+      // Fallback: try to load whatever SVG exists on disk
+      const r2 = await fetch(
+        `${API}/api/projects/${activeProjectId}/experiments/${activeExperimentId}/tasks/${activeTaskId}/chart/svg`
+      )
+      if (r2.ok) {
+        const { svg_content } = await r2.json()
+        set({ svgContent: svg_content || null })
+      }
+    } catch {
+      // Network error — leave preview empty
+    } finally {
+      set({ svgLoading: false })
+    }
+  },
 
   // ── Git status badge ──────────────────────────────────────
   gitStatus: 'saved',   // 'pending' | 'saving' | 'saved'

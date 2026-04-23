@@ -34,7 +34,10 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['version']\\)\")",
       "Bash(node *)",
       "Bash(python3 *)",
-      "Bash(grep -oE \"\\(rgba\\\\\\([0-9, .]+\\\\\\)|#[0-9A-Fa-f]{6}\\)\")"
+      "Bash(grep -oE \"\\(rgba\\\\\\([0-9, .]+\\\\\\)|#[0-9A-Fa-f]{6}\\)\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)"
     ]
   }
 }

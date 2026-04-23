@@ -238,7 +238,7 @@ def patch_font_size(code: str, gid: str, new_size: float) -> PatchResult:
         return PatchResult(False, f"Could not find {gid} setter in code")
 
     for line_no, line in targets:
-        # Replace fontsize= or font_size= argument
+        # Strategy 1: Replace existing numeric fontsize= / font_size=
         new_line = re.sub(
             r'(font_?size\s*=\s*)([\d.]+)',
             lambda m: f'{m.group(1)}{new_size}',
@@ -247,16 +247,35 @@ def patch_font_size(code: str, gid: str, new_size: float) -> PatchResult:
         if new_line != line:
             lines[line_no] = new_line
             patched_lines.append(line_no)
-        else:
-            # No fontsize found — try to inject one before the closing paren
-            new_line = re.sub(
-                r'(\))\s*$',
-                f', fontsize={new_size})',
-                line, count=1
+            continue
+
+        # Strategy 2: fontsize= references a CONFIG variable (e.g. fontsize=TITLE_SIZE).
+        # Patch the variable definition in the CONFIG block rather than injecting a
+        # duplicate kwarg (which would be a SyntaxError).
+        var_match = re.search(r'\bfont_?size\s*=\s*([A-Z_][A-Z0-9_]*)', line)
+        if var_match:
+            var_name = var_match.group(1)
+            var_def_re = re.compile(
+                rf'^({re.escape(var_name)}\s*=\s*).*$', re.MULTILINE
             )
-            if new_line != line:
-                lines[line_no] = new_line
+            joined = '\n'.join(lines)
+            patched_joined, n = var_def_re.subn(
+                rf'\g<1>{new_size}', joined, count=1
+            )
+            if n > 0:
+                lines = patched_joined.splitlines()
                 patched_lines.append(line_no)
+            continue
+
+        # Strategy 3: No fontsize= at all — inject one before the closing paren
+        new_line = re.sub(
+            r'(\))\s*$',
+            f', fontsize={new_size})',
+            line, count=1
+        )
+        if new_line != line:
+            lines[line_no] = new_line
+            patched_lines.append(line_no)
 
     if not patched_lines:
         return PatchResult(False, f"Could not patch font size for {gid}")

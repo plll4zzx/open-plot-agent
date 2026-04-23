@@ -43,7 +43,8 @@ class WriteFileTool(Tool):
                 # Only set ok=False for syntax errors — the file is broken and
                 # execute_python will fail immediately.  Convention warnings keep
                 # ok=True so the agent can still proceed but is expected to fix them.
-                if any(i["check"] == "syntax" for i in issues):
+                HARD_ERRORS = {"syntax", "duplicate_kwarg"}
+                if any(i["check"] in HARD_ERRORS for i in issues):
                     result["ok"] = False
                     result["error"] = notice
 
