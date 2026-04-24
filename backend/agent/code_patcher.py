@@ -159,9 +159,12 @@ def patch_fill_color(code: str, gid: str, new_color: str) -> PatchResult:
     lines = code.splitlines()
     patched_lines = []
 
-    # Extract index from gid like bar_0, scatter_2, etc.
-    idx_match = re.match(r'(?:bar|scatter|patch|line)_(\d+)', gid)
-    idx = int(idx_match.group(1)) if idx_match else None
+    # Extract the element index from the GID.
+    # Single-axis:  bar_2      → PALETTE[2]
+    # Multi-axis:   bar_0_2    → PALETTE[2]  (last number = element index within axis)
+    is_chart_element = re.match(r'(?:bar|scatter|patch|line)_', gid)
+    numbers = re.findall(r'\d+', gid)
+    idx = int(numbers[-1]) if is_chart_element and numbers else None
 
     # Strategy 1: Try palette array replacement
     if idx is not None:

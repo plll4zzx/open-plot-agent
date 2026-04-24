@@ -40,11 +40,14 @@ export const DICT = {
   gitPending:      { zh: '等待提交', en: 'Pending' },
 
   // Dashboard
+  dashboardTitle:    { zh: '学术图表', en: 'Academic Plots' },
+  dashboardTitleEm:  { zh: '工作室', en: 'Studio' },
   dashboardSubtitle: { zh: '用 matplotlib + PGF 输出投稿级 PDF。每次编辑 git 自动留痕。', en: 'Export submission-quality PDFs with matplotlib + PGF. Every edit is tracked with git.' },
   loadDemo:        { zh: '加载 Demo',  en: 'Load Demo' },
   newProject:      { zh: '新建项目',   en: 'New Project' },
   searchProjects:  { zh: '搜索项目…', en: 'Search projects…' },
   noProjects:      { zh: '还没有项目，点击新建开始', en: 'No projects yet. Click New Project to get started.' },
+  projects:        { zh: '个项目', en: 'projects' },
 
   // Nav
   navProjects:     { zh: '项目',   en: 'Projects' },
@@ -88,6 +91,23 @@ export const DICT = {
   noExperiments:   { zh: '还没有实验', en: 'No experiments yet' },
   newExperiment:   { zh: '新建实验',   en: 'New Experiment' },
   newTask:         { zh: '新建任务',   en: 'New Task' },
+  sideProjects:    { zh: '项目', en: 'Projects' },
+  sideAllProjects: { zh: '所有项目', en: 'All Projects' },
+  expandSidebar:   { zh: '展开侧栏', en: 'Expand sidebar' },
+  collapseSidebar: { zh: '收起侧栏', en: 'Collapse sidebar' },
+
+  // Command palette
+  cmdPlaceholder:  { zh: '输入命令或搜索…', en: 'Type a command or search…' },
+  cmdGrpGenerate:  { zh: '生成', en: 'Generate' },
+  cmdGrpView:      { zh: '新建', en: 'New' },
+  cmdGrpExport:    { zh: '导出', en: 'Export' },
+  cmdGrpHistory:   { zh: '历史', en: 'History' },
+  cmdRegen:        { zh: '重新生成图表', en: 'Regenerate chart' },
+  cmdNewTask:      { zh: '新建任务', en: 'New task' },
+  cmdNewExp:       { zh: '新建实验', en: 'New experiment' },
+  cmdExportPdf:    { zh: '导出 PDF', en: 'Export PDF' },
+  cmdExportSvg:    { zh: '导出 SVG', en: 'Export SVG' },
+  cmdUndo:         { zh: '回退到上一版', en: 'Revert to previous version' },
 
   // Activity tabs / section headers
   tabChat:         { zh: '对话',     en: 'Chat' },
@@ -224,7 +244,7 @@ export const DICT = {
   pTitle:        { zh: '标题', en: 'Title' },
   pXlabel:       { zh: 'X 轴标签', en: 'X label' },
   pYlabel:       { zh: 'Y 轴标签', en: 'Y label' },
-  pSuptitle:     { zh: '总标题', en: 'Suptitle' },
+  pSuptitle:     { zh: '总标题', en: 'Figure title' },
   pTitleSize:    { zh: '标题字号', en: 'Title size' },
   pLabelSize:    { zh: '轴标签字号', en: 'Label size' },
   pTickSize:     { zh: '刻度字号', en: 'Tick size' },

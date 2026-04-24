@@ -732,6 +732,7 @@ export function SvgPreview({ onElementClick, showBorders = true }) {
         style={{ background: 'rgba(0,0,0,0.015)' }}>
         <div
           ref={containerRef}
+          data-role="svg-preview"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}

@@ -12,13 +12,9 @@
 
 ## 界面预览
 
-| Agent 对话与代码生成 | 图表预览与属性调整 |
-|---|---|
-| ![Agent 对话面板](pic/plot-agent.png) | ![图表编辑与属性面板](pic/plot-edit.png) |
+![OpenPlotAgent Spatial v2 界面](pic/UI-V2.png)
 
-| Git 版本历史 | Excel 风格数据表格 |
-|---|---|
-| ![Git 历史记录](pic/plot-history.png) | ![数据表格编辑](pic/tabel.png) |
+> **Spatial v2 设计**：三栏网格布局 — 左侧侧边栏（实验树 + Git 图）| 中央工作区 | 右侧操作栏。所有面板（图表预览、代码、数据、图层、属性编辑、Agent 对话）均为独立浮动窗口，可拖拽、可缩放、可叠加；点击任意窗口自动置顶。
 
 ---
 
@@ -57,12 +53,28 @@ OpenPlotAgent 是一款面向科研人员（研究生、博士后、PI）的 **A
 
 ## 核心特性
 
+### Spatial v2 界面设计
+
+全新的工作区采用三栏网格布局，所有功能面板均为浮动窗口：
+
+- **三栏网格**：左侧边栏（实验树 + 彩色 Git 分支图）| 中央工作区（流水线状态栏 + 工具栏 + 画布） | 右侧操作栏（Agent / 代码 / 数据 / 图层 / 设置快捷按钮）
+- **全流程流水线状态栏**：顶部全宽显示 ① DATA → ② AGENT → ③ CODE → ④ CHART → ⑤ EXPORT，点击任意节点直接切换到对应面板
+- **所有浮动窗口均可拖拽 + 调整大小 + 叠加**，点击窗口自动置顶（z-index 栈管理）：
+  - **◉ CHART**：SVG 图表预览窗口，窗口缩放时 SVG 等比例跟随
+  - **{} CODE**：代码编辑器浮动窗口
+  - **▦ DATA**：数据表格浮动窗口
+  - **LAYERS**：图层面板，点击图层条目弹出对应元素的属性编辑器
+  - **EDIT · gid**：SVG 元素属性编辑浮动窗口（颜色、字号、文字等）
+  - **AGENT**：对话 / 编辑 / 属性 / 配色 / 记忆 / 模板多标签页
+- **彩色 Git 分支图**：侧边栏内嵌提交历史，main（蓝）/ agent（紫）/ manual（橙）三色区分，点击任意提交可一键还原
+
 ### Human-in-the-Loop 人机协同
 
 OpenPlotAgent 的核心设计理念：AI 负责繁琐的脚本编写与数据处理，人负责审美判断与精细调整，两者无缝衔接。
 
 - 对话式绘图：用自然语言描述需求，Agent 自动完成数据探索、代码生成、图表渲染
 - 可视化接管：点击任意 SVG 元素直接修改颜色、字号、文字、线宽；双击标题/坐标轴标签在位编辑；拖拽图例到新位置；双击坐标轴快速设置 xlim/ylim
+- **图层面板联动**：在 LAYERS 浮动窗口点击 title / legend / xaxis 等图层条目，自动弹出对应元素的 EDIT 属性编辑器；同时支持直接点击 SVG 元素打开 Agent 的编辑标签页
 - 一键切换配色方案（后端 `/palette` 直接改写 `plot.py`，无需 LLM），支持自定义调色板保存
 - **图表属性面板**：自动解析 `plot.py` 中的 `@prop` 注释，为标题、字号、颜色、图例、坐标范围等每个属性生成对应控件；每个属性带独立开关——关闭即从图中删除该元素（如关闭标题），开启后自动恢复；无需 LLM 即可直接微调图表
 - Excel 风格数据表格：鼠标拖拽选区、Shift+点击扩选、Ctrl+A/C/V 全选复制粘贴、点击行号选整行、点击列名选整列、双击编辑单元格、右键插入/删除行、右键列名排序
@@ -182,20 +194,21 @@ open-plot-agent/
 │   └── pyproject.toml          # Python 依赖声明
 ├── frontend/                   # React + Vite 前端
 │   ├── src/
-│   │   ├── App.jsx             # 主界面（Dashboard + Workspace）
+│   │   ├── App.jsx             # 主界面：三栏网格 + 所有浮动面板（useDraggable / useZStack / FloatPanel）
+│   │   ├── index.css           # Spatial v2 设计系统（oklch 色彩 token、grid 布局、浮动窗口样式）
 │   │   ├── components/         # 核心 UI 组件
-│   │   │   ├── ChatPanel.jsx       # 对话面板（流式 + think 折叠 + 工具调用）
-│   │   │   ├── SvgPreview.jsx      # SVG 预览 + 缩放 + 拖拽编辑
-│   │   │   ├── ElementEditor.jsx   # 元素属性编辑器（颜色/字号/文字）
-│   │   │   ├── PropertiesPanel.jsx # 图表属性面板（@prop 解析 + 开关控件）
-│   │   │   ├── PalettePanel.jsx    # 配色方案面板（直接调用 /palette）
-│   │   │   ├── DataPanel.jsx       # 原始数据 + Processed + Script 标签页
-│   │   │   ├── DataGrid.jsx        # 自定义电子表格（拖拽选区/行列选择/右键菜单）
+│   │   │   ├── ChatPanel.jsx       # 对话面板（流式 + think 折叠 + 工具调用展示）
+│   │   │   ├── SvgPreview.jsx      # SVG 预览（ResizeObserver 等比缩放 + 拖拽图例 + 双击在位编辑）
+│   │   │   ├── ElementEditor.jsx   # SVG 元素属性编辑器（颜色/字号/文字/线宽）
+│   │   │   ├── PropertiesPanel.jsx # @prop 注释解析 + 开关控件面板
+│   │   │   ├── PalettePanel.jsx    # 配色方案面板（直接调用 /palette，无需 LLM）
+│   │   │   ├── DataPanel.jsx       # 数据 + Script 标签页
+│   │   │   ├── DataGrid.jsx        # Excel 风格电子表格（拖拽选区/行列选择/右键菜单）
 │   │   │   ├── CodeEditor.jsx      # Monaco Python 编辑器
-│   │   │   ├── MemoryPanel.jsx     # 三级记忆编辑面板
-│   │   │   ├── TemplatePanel.jsx   # 学术图表模板库
+│   │   │   ├── MemoryPanel.jsx     # 四级记忆编辑面板
+│   │   │   ├── TemplatePanel.jsx   # 学术图表模板库（8 种）
 │   │   │   ├── ExperimentPanel.jsx # 实验视图
-│   │   │   └── SettingsModal.jsx   # 模型设置弹窗
+│   │   │   └── SettingsModal.jsx   # 模型与配置设置弹窗
 │   │   ├── hooks/
 │   │   │   └── useAgentChat.js # WebSocket 通信 Hook
 │   │   └── store/
@@ -466,8 +479,9 @@ Agent 具备以下 19 个工具：
 
 OpenPlotAgent 遵循以下核心设计原则：
 
-- **接口密度是特性** — 紧凑的信息密度，无动画、无插图，专注于精确操作
-- **Git 作为基础设施** — 版本控制不是可选项，而是工作流的核心组成
+- **Spatial v2 工作区** — 浮动窗口优先，每个工具面板独立可拖拽、可缩放、可叠加，z-index 栈管理自动置顶；工作区本身是一张自由画布
+- **接口密度是特性** — 紧凑的信息密度，无冗余动画，专注精确操作；oklch 色彩系统保证跨屏一致性
+- **Git 作为基础设施** — 版本控制不是可选项，彩色分支图内嵌侧边栏，每次变更均可一键还原
 - **可切换的 AI 后端** — 不绑定特定 LLM，支持在 Claude 和本地模型间自由切换
-- **记忆随项目积累** — Agent 在三个层级（全局/项目/任务）积累偏好，越用越懂你
+- **记忆随项目积累** — Agent 在四个层级（全局/项目/实验/任务）积累偏好，越用越懂你
 

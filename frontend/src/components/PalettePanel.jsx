@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Check, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
 import { useT } from '../i18n'
@@ -11,24 +11,48 @@ const BUILT_IN = [
   { name: 'Pastel',    colors: ['#FBB4AE','#B3CDE3','#CCEBC5','#DECBE4','#FED9A6','#FFFFCC','#E5D8BD'] },
 ]
 
+// Extract colors from SVG by GID — works for bar/line/scatter series
 function extractCurrentColors(svgContent) {
   if (!svgContent) return []
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(svgContent, 'image/svg+xml')
     const colors = []
+    const prefixes = ['bar', 'line', 'scatter']
     let i = 0
     while (i < 20) {
-      const barEl = doc.getElementById(`bar_${i}`) || doc.getElementById(`line_${i}`)
-      if (!barEl) break
-      const path = barEl.querySelector('path, rect, polygon, circle, polyline')
-      const fill = path?.getAttribute('fill')
-      const stroke = path?.getAttribute('stroke')
-      const c = (fill && fill !== 'none') ? fill : stroke
-      if (c && c !== 'none') colors.push(c)
+      let found = false
+      for (const prefix of prefixes) {
+        const el = doc.getElementById(`${prefix}_${i}`)
+        if (el) {
+          const path = el.querySelector('path, rect, polygon, circle, polyline, ellipse')
+          const fill = path?.getAttribute('fill')
+          const stroke = path?.getAttribute('stroke')
+          const c = (fill && fill !== 'none') ? fill : stroke
+          if (c && c !== 'none') colors.push(c)
+          found = true
+          break
+        }
+      }
+      if (!found) break
       i++
     }
     return colors
+  } catch { return [] }
+}
+
+// Read PALETTE = [...] hex list directly from plot.py source
+async function fetchColorsFromSource(projectId, experimentId, taskId) {
+  try {
+    const r = await fetch(
+      `/api/projects/${projectId}/experiments/${experimentId}/tasks/${taskId}/files/chart/plot.py`
+    )
+    if (!r.ok) return []
+    const data = await r.json()
+    const src = data.content || ''
+    const m = src.match(/PALETTE\s*=\s*(\[[\s\S]*?\])/m)
+    if (!m) return []
+    return [...m[1].matchAll(/["'](#[0-9a-fA-F]{6})["']/g)].map(x => x[1])
   } catch { return [] }
 }
 
@@ -37,41 +61,60 @@ function applyPaletteToSvg(svgContent, palette) {
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(svgContent, 'image/svg+xml')
+    const prefixes = ['bar', 'line', 'scatter']
     let i = 0
     while (i < 20) {
-      const barEl = doc.getElementById(`bar_${i}`) || doc.getElementById(`line_${i}`)
-      if (!barEl) break
-      const color = palette[i % palette.length]
-      barEl.querySelectorAll('path, rect, polygon, circle').forEach(p => {
-        if ((p.getAttribute('fill') || '') !== 'none') p.setAttribute('fill', color)
-      })
-      barEl.querySelectorAll('polyline, path[stroke]').forEach(p => {
-        if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none')
-          p.setAttribute('stroke', color)
-      })
+      let found = false
+      for (const prefix of prefixes) {
+        const el = doc.getElementById(`${prefix}_${i}`)
+        if (el) {
+          const color = palette[i % palette.length]
+          if (prefix === 'line') {
+            el.querySelectorAll('polyline, path').forEach(p => {
+              if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none')
+                p.setAttribute('stroke', color)
+            })
+          } else {
+            el.querySelectorAll('path, rect, polygon, circle, ellipse').forEach(p => {
+              if ((p.getAttribute('fill') || '') !== 'none') p.setAttribute('fill', color)
+            })
+          }
+          found = true
+          break
+        }
+      }
+      if (!found) break
       i++
     }
     return new XMLSerializer().serializeToString(doc.documentElement)
   } catch { return svgContent }
 }
 
-/** Apply palette directly: preview client-side, persist via backend. */
+/** Apply palette: try SVG color extraction first, fall back to PALETTE in plot.py source. */
 export async function applyPaletteDirect({
   svgContent, palette, activeProjectId, activeExperimentId, activeTaskId,
   updateSvgContent, fetchGitLog, onNotice,
   msgs = {},
 }) {
-  const oldColors = extractCurrentColors(svgContent)
+  // 1) Try SVG-based extraction (works for bar/line charts with GID tags)
+  let oldColors = extractCurrentColors(svgContent)
+  const fromSvg = oldColors.length > 0
+
+  // 2) Fall back to PALETTE variable in plot.py source (works for all agent-generated charts)
+  if (!fromSvg && activeProjectId && activeExperimentId && activeTaskId) {
+    oldColors = await fetchColorsFromSource(activeProjectId, activeExperimentId, activeTaskId)
+  }
+
   if (!oldColors.length) {
     onNotice?.({ ok: false, text: msgs.noColors ?? '未检测到可替换的颜色' })
     return
   }
+
   const newColors = oldColors.map((_, i) => palette[i % palette.length])
 
-  // 1) Immediate client-side preview
-  updateSvgContent(applyPaletteToSvg(svgContent, palette))
+  // Immediate client-side preview for charts with GID-tagged series
+  if (fromSvg) updateSvgContent(applyPaletteToSvg(svgContent, palette))
 
-  // 2) Persist to plot.py + re-render on backend
   if (!activeProjectId || !activeExperimentId || !activeTaskId) return
   try {
     const r = await fetch(
@@ -106,6 +149,14 @@ export function PalettePanel() {
   const [applied, setApplied] = useState(null)
   const [notice, setNotice] = useState(null)
 
+  // Load persisted custom palettes from backend on mount
+  useEffect(() => {
+    fetch('/api/palettes')
+      .then(r => r.ok ? r.json() : { palettes: [] })
+      .then(data => setCustom(data.palettes || []))
+      .catch(() => {})
+  }, [])
+
   const apply = async (palette) => {
     setApplied(palette.name)
     await applyPaletteDirect({
@@ -126,16 +177,35 @@ export function PalettePanel() {
     setTimeout(() => setApplied(null), 1500)
   }
 
-  const saveCurrent = () => {
-    const colors = extractCurrentColors(svgContent)
+  const saveCurrent = async () => {
+    // Try SVG first, fall back to plot.py source
+    let colors = extractCurrentColors(svgContent)
+    if (!colors.length && activeProjectId && activeExperimentId && activeTaskId) {
+      colors = await fetchColorsFromSource(activeProjectId, activeExperimentId, activeTaskId)
+    }
     if (!colors.length) return
     const name = t('customPalette', { n: custom.length + 1 })
-    setCustom(prev => [...prev, { name, colors }])
+    const newPalette = { name, colors }
+    try {
+      await fetch('/api/palettes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPalette),
+      })
+    } catch { /* best-effort */ }
+    setCustom(prev => [...prev, newPalette])
   }
 
-  const deleteCustom = (name) => setCustom(prev => prev.filter(p => p.name !== name))
+  const deleteCustom = async (name) => {
+    try {
+      await fetch(`/api/palettes/${encodeURIComponent(name)}`, { method: 'DELETE' })
+    } catch { /* best-effort */ }
+    setCustom(prev => prev.filter(p => p.name !== name))
+  }
 
   const all = [...BUILT_IN, ...custom]
+
+  // Current colors: try SVG first (instant), then we don't async-fetch for display
   const currentColors = extractCurrentColors(svgContent)
 
   return (
@@ -157,6 +227,17 @@ export function PalettePanel() {
               <span key={i} title={c} style={{ display: 'inline-block', width: 18, height: 18, borderRadius: 4, background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Save button for charts without detectable SVG colors (e.g. scatter) */}
+      {!currentColors.length && svgContent && (activeProjectId && activeExperimentId && activeTaskId) && (
+        <div className="mb-4 flex justify-end">
+          <button onClick={saveCurrent}
+            className="flex items-center gap-1 px-2 py-0.5 rounded"
+            style={{ fontSize: 11, border: '1px solid #BDCFDF', color: '#2E4A5E' }}>
+            <Plus size={9} />{t('save')}
+          </button>
         </div>
       )}
 
@@ -183,7 +264,7 @@ export function PalettePanel() {
               </span>
               {applied === p.name && <Check size={11} style={{ color: '#1A7DC4', flexShrink: 0 }} />}
             </button>
-            {custom.includes(p) && (
+            {custom.some(cp => cp.name === p.name) && (
               <button onClick={() => deleteCustom(p.name)}
                 className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
                 style={{ color: '#9DB5C7', border: '1px solid #CFE0ED' }}>

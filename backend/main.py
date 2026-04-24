@@ -1252,6 +1252,55 @@ async def create_toy_example():
     }
 
 
+# ── Custom palettes (persisted to ~/open-plot-agent/palettes.json) ─────────
+
+_PALETTES_FILE = Path.home() / "open-plot-agent" / "palettes.json"
+
+
+def _load_palettes() -> list[dict]:
+    if not _PALETTES_FILE.exists():
+        return []
+    try:
+        return json.loads(_PALETTES_FILE.read_text())
+    except Exception:
+        return []
+
+
+def _save_palettes(palettes: list[dict]) -> None:
+    _PALETTES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _PALETTES_FILE.write_text(json.dumps(palettes, ensure_ascii=False, indent=2))
+
+
+class CustomPaletteRequest(BaseModel):
+    name: str
+    colors: list[str]
+
+
+@app.get("/api/palettes")
+async def list_palettes():
+    return {"palettes": _load_palettes()}
+
+
+@app.post("/api/palettes")
+async def save_palette(palette: CustomPaletteRequest):
+    palettes = _load_palettes()
+    for i, p in enumerate(palettes):
+        if p.get("name") == palette.name:
+            palettes[i] = palette.model_dump()
+            _save_palettes(palettes)
+            return {"ok": True, "action": "updated"}
+    palettes.append(palette.model_dump())
+    _save_palettes(palettes)
+    return {"ok": True, "action": "created"}
+
+
+@app.delete("/api/palettes/{name}")
+async def delete_palette(name: str):
+    palettes = [p for p in _load_palettes() if p.get("name") != name]
+    _save_palettes(palettes)
+    return {"ok": True}
+
+
 # ── Health ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")

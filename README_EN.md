@@ -12,13 +12,9 @@
 
 ## Screenshots
 
-| Agent conversation & code generation | Chart preview & property editing |
-|---|---|
-| ![Agent chat panel](pic/plot-agent.png) | ![Chart editing and properties panel](pic/plot-edit.png) |
+![OpenPlotAgent Spatial v2 Interface](pic/UI-V2.png)
 
-| Git version history | Excel-style data table |
-|---|---|
-| ![Git history](pic/plot-history.png) | ![Data table editor](pic/tabel.png) |
+> **Spatial v2 design**: three-column grid — left sidebar (experiment tree + Git graph) | central workspace | right actions rail. All panels (chart preview, code, data, layers, element editor, agent chat) are independent floating windows — draggable, resizable, and stackable; clicking any window brings it to the front.
 
 ---
 
@@ -57,12 +53,28 @@ Unlike online tools such as Datawrapper or Flourish, OpenPlotAgent:
 
 ## Key Features
 
+### Spatial v2 Interface
+
+The redesigned workspace uses a three-column grid with every functional panel as a floating window:
+
+- **Three-column grid**: left sidebar (experiment tree + color-coded Git branch graph) | central workspace (pipeline bar + toolbar + canvas) | right actions rail (Agent / Code / Data / Layers / Settings shortcuts)
+- **Full-width pipeline bar**: shows ① DATA → ② AGENT → ③ CODE → ④ CHART → ⑤ EXPORT across the top; click any node to jump to that panel
+- **All floating windows are draggable, resizable, and stackable** — clicking any window brings it to the front (z-index stack):
+  - **◉ CHART**: SVG chart preview; proportional scaling follows window resize automatically
+  - **{} CODE**: code editor floating window
+  - **▦ DATA**: data table floating window
+  - **LAYERS**: layers panel; clicking a layer entry opens a dedicated property editor popup for that element
+  - **EDIT · gid**: element property editor (color, font size, text, line width)
+  - **AGENT**: multi-tab panel — Chat / Edit / Properties / Palette / Memory / Templates
+- **Color-coded Git branch graph** embedded in the sidebar: main (blue) / agent (purple) / manual (orange); click any commit to restore
+
 ### Human-in-the-Loop
 
 The core design principle: AI handles the tedious scripting and data processing; you handle aesthetic judgment and fine-tuning — the two work together seamlessly.
 
 - Conversational plotting: describe what you need, Agent handles data exploration, code generation, and rendering
 - Visual takeover: click any SVG element to directly edit colors, font sizes, text, and line widths; double-click titles and axis labels for in-place editing; drag the legend to reposition it; double-click an axis to quickly set xlim/ylim
+- **Layers panel integration**: click any entry in the LAYERS panel (title, legend, xaxis, etc.) to open a dedicated EDIT property editor for that element; alternatively, clicking an SVG element directly opens the Agent's edit tab
 - One-click color scheme switching (server-side `/palette` rewrites `plot.py` without LLM); save custom palettes
 - **Chart Properties panel**: auto-parses `@prop` annotations in `plot.py` and generates UI controls for each property (title, font sizes, colors, legend, axis ranges, etc.); each property has its own toggle — disabling it removes the element from the chart, enabling it restores it; no LLM needed for fine-tuning
 - Excel-style data table: drag to select cells, Shift+click to extend selection, Ctrl+A/C/V, click row numbers to select entire rows, click column headers to sort, double-click to edit, right-click to insert/delete rows
@@ -180,8 +192,21 @@ open-plot-agent/
 │   └── pyproject.toml          # Python dependency declaration
 ├── frontend/                   # React + Vite frontend
 │   ├── src/
-│   │   ├── App.jsx             # Main UI (Dashboard + Workspace)
-│   │   ├── components/         # 7 core UI components
+│   │   ├── App.jsx             # Main UI: 3-column grid + all floating panels (useDraggable / useZStack / FloatPanel)
+│   │   ├── index.css           # Spatial v2 design system (oklch color tokens, grid layout, float panel styles)
+│   │   ├── components/         # Core UI components
+│   │   │   ├── ChatPanel.jsx       # Chat panel (streaming + thinking blocks + tool call display)
+│   │   │   ├── SvgPreview.jsx      # SVG preview (ResizeObserver proportional zoom + legend drag + in-place edit)
+│   │   │   ├── ElementEditor.jsx   # SVG element property editor (color / font size / text / stroke)
+│   │   │   ├── PropertiesPanel.jsx # @prop annotation parser + toggle controls
+│   │   │   ├── PalettePanel.jsx    # Color scheme panel (calls /palette directly, no LLM)
+│   │   │   ├── DataPanel.jsx       # Data + Script tabs
+│   │   │   ├── DataGrid.jsx        # Excel-style spreadsheet (drag selection / row-column select / context menu)
+│   │   │   ├── CodeEditor.jsx      # Monaco Python editor
+│   │   │   ├── MemoryPanel.jsx     # Four-tier memory editor
+│   │   │   ├── TemplatePanel.jsx   # Academic chart template library (8 types)
+│   │   │   ├── ExperimentPanel.jsx # Experiment view
+│   │   │   └── SettingsModal.jsx   # Model & config settings modal
 │   │   ├── hooks/
 │   │   │   └── useAgentChat.js # WebSocket communication hook
 │   │   └── store/
@@ -445,10 +470,10 @@ The Agent has access to 19 tools:
 
 OpenPlotAgent is guided by the following core principles:
 
-- **Local-first, data stays local** — All data and computation remain on your machine, suitable for confidential research
-- **Interface density is a feature** — Compact information density, no animations, no decorative illustrations — precision-focused
-- **Git as infrastructure** — Version control is not optional; it is a core part of the workflow
+- **Spatial v2 workspace** — floating-window first; every tool panel is independently draggable, resizable, and stackable; z-index stack management brings the last-clicked window to the front; the canvas itself is a free-form surface
+- **Interface density is a feature** — Compact information density, no decorative animations, precision-focused; oklch color system ensures cross-display consistency
+- **Git as infrastructure** — Version control is not optional; the color-coded branch graph is embedded in the sidebar, and any commit can be restored in one click
 - **Swappable AI backend** — Not locked to any specific LLM; freely switch between Claude and local models
-- **Memory accumulates with projects** — The Agent builds up preferences across three levels (global / project / task), getting smarter the more you use it
+- **Memory accumulates with projects** — The Agent builds up preferences across four levels (global / project / experiment / task), getting smarter the more you use it
 
 
